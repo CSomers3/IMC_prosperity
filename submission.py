@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from datamodel import OrderDepth, TradingState, Order
 
 
@@ -22,6 +23,13 @@ class Trader:
         self.pos = {}
         self.fair_value = {"PEARLS": 9999.99, "BANANAS": 4938.30}
 
+        self.seashells: int = 0
+        """
+        Relative amount of seashells made that day so far
+        """
+
+        self.timestamp: int = 0
+
     def run(self, state: TradingState) -> dict[str, list[Order]]:
         """
         Only method required. It takes all buy and sell orders for all symbols as an input,
@@ -40,6 +48,10 @@ class Trader:
             self.pos[product] = state.position.get(product, 0)
 
             order_depth: OrderDepth = state.order_depths[product]
+            best_bid: int | None
+            best_bid_volume: int
+            best_ask: int | None
+            best_ask_volume: int
             best_bid, best_bid_volume, best_ask, best_ask_volume = get_top_of_book(order_depth)
 
             print(f"VOLUME LIMIT {self.pos_limit[product]} POSITION {self.pos[product]}")
@@ -50,6 +62,7 @@ class Trader:
                     buy_volume = min(-best_ask_volume, self.pos_limit[product] - self.pos[product])
                     print(f"BUYING {product} at ${best_ask} x {buy_volume}")
                     orders.append(Order(product, best_ask, buy_volume))
+                    self.seashells -= best_ask * buy_volume
 
             # Determine if a sell order should be placed
             if best_bid and best_bid > self.fair_value[product]:
@@ -57,8 +70,13 @@ class Trader:
                     sellable_volume = max(-best_bid_volume, -self.pos_limit[product] - self.pos[product])
                     print(f"SELLING {product} at ${best_bid} x {sellable_volume}")
                     orders.append(Order(product, best_bid, sellable_volume))
+                    self.seashells += best_bid * (-sellable_volume)
 
             # Add all the above orders to the result dict
             result[product] = orders
+
+        self.timestamp += 1
+
+        print(f"SEASHELLS AT TIMESTAMP {self.timestamp}: {self.seashells}")
 
         return result

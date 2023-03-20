@@ -40,8 +40,8 @@ class OrderDepth:
     associated with the order, and the corresponding keys indicate the total volume on that price level.
     """
     def __init__(self):
-        self.buy_orders: Dict[int, int] = {}
-        self.sell_orders: Dict[int, int] = {}
+        self.buy_orders: Dict[int, int] = {}  # values are positive
+        self.sell_orders: Dict[int, int] = {}  # values are negative
 
 
 class Trade:
