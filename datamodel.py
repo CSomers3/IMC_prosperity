@@ -24,21 +24,36 @@ class Order:
         self.quantity = quantity
 
     def __str__(self) -> str:
-        return "(" + self.symbol + ", " + str(self.price) + ", " + str(self.quantity) + ")"
+        return (
+            "(" + self.symbol + ", " + str(self.price) + ", " + str(self.quantity) + ")"
+        )
 
     def __repr__(self) -> str:
-        return "(" + self.symbol + ", " + str(self.price) + ", " + str(self.quantity) + ")"
+        return (
+            "(" + self.symbol + ", " + str(self.price) + ", " + str(self.quantity) + ")"
+        )
 
 
 class OrderDepth:
+    """
+    All the orders on a single side (buy or sell) are aggregated in a dict, where the keys indicate the price
+    associated with the order, and the corresponding keys indicate the total volume on that price level.
+    """
     def __init__(self):
         self.buy_orders: Dict[int, int] = {}
         self.sell_orders: Dict[int, int] = {}
 
 
 class Trade:
-    def __init__(self, symbol: Symbol, price: int, quantity: int, buyer: UserId = None, seller: UserId = None,
-                 timestamp: int = 0) -> None:
+    def __init__(
+        self,
+        symbol: Symbol,
+        price: int,
+        quantity: int,
+        buyer: UserId = None,
+        seller: UserId = None,
+        timestamp: int = 0,
+    ) -> None:
         self.symbol = symbol
         self.price: int = price
         self.quantity: int = quantity
@@ -50,14 +65,16 @@ class Trade:
 class TradingState(object):
     own_trades = None
 
-    def __init__(self,
-                 timestamp: Time,
-                 listings: Dict[Symbol, Listing],
-                 order_depths: Dict[Symbol, OrderDepth],
-                 own_trades: Dict[Symbol, List[Trade]],
-                 market_trades: Dict[Symbol, List[Trade]],
-                 position: Dict[Product, Position],
-                 observations: Dict[Product, Observation]):
+    def __init__(
+        self,
+        timestamp: Time,
+        listings: Dict[Symbol, Listing],
+        order_depths: Dict[Symbol, OrderDepth],
+        own_trades: Dict[Symbol, List[Trade]],
+        market_trades: Dict[Symbol, List[Trade]],
+        position: Dict[Product, Position],
+        observations: Dict[Product, Observation],
+    ):
         self.timestamp = timestamp
         self.listings = listings
         self.order_depths = order_depths
