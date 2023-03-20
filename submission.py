@@ -35,6 +35,10 @@ class Trader:
         Only method required. It takes all buy and sell orders for all symbols as an input,
         and outputs a list of orders to be sent
         """
+
+        # Linebreak after each timestamp (printed on the IMC end)
+        print(".")
+
         # Initialize the method output dict as an empty dict
         result = {}
 
@@ -54,13 +58,13 @@ class Trader:
             best_ask_volume: int
             best_bid, best_bid_volume, best_ask, best_ask_volume = get_top_of_book(order_depth)
 
-            print(f"VOLUME LIMIT {self.pos_limit[product]} POSITION {self.pos[product]}")
+            print(f"{product.upper()}: Volume limit {self.pos_limit[product]}; position {self.pos[product]}")
 
             # Determine if a buy order should be placed
             if best_ask and best_ask < self.fair_value[product]:
                 if self.pos_limit[product] - self.pos[product] > 0:
                     buy_volume = min(-best_ask_volume, self.pos_limit[product] - self.pos[product])
-                    print(f"BUYING {product} at ${best_ask} x {buy_volume}")
+                    print(f"{product.upper()}: Buying at ${best_ask} x {buy_volume}")
                     orders.append(Order(product, best_ask, buy_volume))
                     self.seashells -= best_ask * buy_volume
 
@@ -68,15 +72,15 @@ class Trader:
             if best_bid and best_bid > self.fair_value[product]:
                 if self.pos_limit[product] + self.pos[product] > 0:
                     sellable_volume = max(-best_bid_volume, -self.pos_limit[product] - self.pos[product])
-                    print(f"SELLING {product} at ${best_bid} x {sellable_volume}")
+                    print(f"{product.upper()}: SELLING at ${best_bid} x {sellable_volume}")
                     orders.append(Order(product, best_bid, sellable_volume))
                     self.seashells += best_bid * (-sellable_volume)
 
             # Add all the above orders to the result dict
             result[product] = orders
 
-        self.timestamp += 1
-
         print(f"SEASHELLS AT TIMESTAMP {self.timestamp}: {self.seashells}")
+
+        self.timestamp += 100
 
         return result
