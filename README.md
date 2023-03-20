@@ -1,5 +1,5 @@
-# IMC_prosperity
-Private Github for the IMC Prosperity Challenge - Team Achill Island
+# IMC_prosperity - Team Achill Island
+Private Github for the IMC Prosperity Challenge
 
 
 # Prosperity Outline
