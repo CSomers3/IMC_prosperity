@@ -72,7 +72,7 @@ class Trader:
         self.best_ask_prices = {"PEARLS": [], "BANANAS": []}
         self.bid_ma = {"PEARLS": 9996.5784, "BANANAS": 0}
         self.ask_ma = {"PEARLS": 10003.3944, "BANANAS": 0}
-        self.std = {"PEARLS": 1.578400, "BANANAS": 2}
+        self.std = {"PEARLS": 1.578400, "BANANAS": 2.57}
         self.pos = {}
 
         self.seashells: int = 0
