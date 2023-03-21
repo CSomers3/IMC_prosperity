@@ -1,31 +1,69 @@
 from __future__ import annotations
 import json
 from datamodel import Order, ProsperityEncoder, TradingState, Symbol, OrderDepth
-from typing import Any, Dict, List
+
+
+### To be removed for the actual submission
+###
+class ProfitsAndLossesEstimator:
+    def __init__(self, products: list[str]) -> None:
+        self.profits_and_losses: dict[Symbol, int] = {product: 0 for product in products}
+
+    def update(self, order: Order) -> None:
+        """
+        Updates the P&L for the given order.
+        """
+        self.profits_and_losses[order.symbol] = (
+                self.profits_and_losses[order.symbol]  # current P&L for this symbol
+                +
+                order.price * (-order.quantity)  # if we buy we lose money, if we sell we gain money
+        )
+
+    def get(self, symbol: Symbol) -> int:
+        """
+        Returns the current P&L for the given symbol.
+        """
+        return self.profits_and_losses.get(symbol, 0)
+
+    def get_all(self) -> dict[Symbol, int]:
+        """
+        Returns the current P&L for all symbols.
+        """
+        return self.profits_and_losses
+
 
 class Logger:
     def __init__(self) -> None:
         self.logs = ""
 
-    def print(self, *objects: Any, sep: str = " ", end: str = "\n") -> None:
+    def print(self, *objects: any, sep: str = " ", end: str = "\n") -> None:
         self.logs += sep.join(map(str, objects)) + end
 
-    def flush(self, state: TradingState, orders: Dict[Symbol, List[Order]]) -> None:
+    def flush(self, state: TradingState, orders: dict[Symbol, list[Order]]) -> None:
         logs = self.logs
         if logs.endswith("\n"):
             logs = logs[:-1]
 
-        print(json.dumps({
-            "state": state,
-            "orders": orders,
-            "logs": logs,
-        }, cls=ProsperityEncoder, separators=(",", ":"), sort_keys=True))
+        print(
+            json.dumps(
+                {
+                    "state": state,
+                    "orders": orders,
+                    "logs": logs,
+                },
+                cls=ProsperityEncoder,
+                separators=(",", ":"),
+                sort_keys=True,
+            )
+        )
 
         self.state = None
         self.orders = {}
         self.logs = ""
 
+
 logger = Logger()
+###
 
 
 def get_top_of_book(order_depth: OrderDepth) -> tuple[int | None, int, int | None, int]:
@@ -44,15 +82,10 @@ class Trader:
     def __init__(self):
         # Initialize position limit and position for each product
         self.products = ["PEARLS", "BANANAS"]
+        self.profits_and_losses_estimator: ProfitsAndLossesEstimator = ProfitsAndLossesEstimator(self.products)
         self.pos_limit = {product: 20 for product in self.products}
         self.pos = {}
         self.fair_value = {"PEARLS": 9999.99, "BANANAS": 4938.30}
-
-        self.seashells: int = 0
-        """
-        Relative amount of seashells made that day so far
-        """
-
         self.timestamp: int = 0
 
     def run(self, state: TradingState) -> dict[str, list[Order]]:
@@ -81,31 +114,79 @@ class Trader:
             best_bid_volume: int
             best_ask: int | None
             best_ask_volume: int
-            best_bid, best_bid_volume, best_ask, best_ask_volume = get_top_of_book(order_depth)
+            best_bid, best_bid_volume, best_ask, best_ask_volume = get_top_of_book(
+                order_depth
+            )
 
-            logger.print(f"{product.upper()}: Volume limit {self.pos_limit[product]}; position {self.pos[product]}")
+            logger.print(
+                f"{product.upper()}: Volume limit {self.pos_limit[product]}; position {self.pos[product]}"
+            )
 
             # Determine if a buy order should be placed
             if best_ask and best_ask < self.fair_value[product]:
                 if self.pos_limit[product] - self.pos[product] > 0:
-                    buy_volume = min(-best_ask_volume, self.pos_limit[product] - self.pos[product])
-                    logger.print(f"{product.upper()}: Buying at ${best_ask} x {buy_volume}")
+                    buy_volume = min(
+                        -best_ask_volume, self.pos_limit[product] - self.pos[product]
+                    )
+                    ### To be removed for the actual submission
+                    ###
+                    logger.print(
+                        f"{product.upper()}: Buying at ${best_ask} x {buy_volume}"
+                    )
+                    ###
                     orders.append(Order(product, best_ask, buy_volume))
-                    self.seashells -= best_ask * buy_volume
+                    ### To be removed for the actual submission
+                    ###
+                    self.profits_and_losses_estimator.update(Order(product, best_ask, buy_volume))
+                    ###
 
             # Determine if a sell order should be placed
             if best_bid and best_bid > self.fair_value[product]:
                 if self.pos_limit[product] + self.pos[product] > 0:
-                    sellable_volume = max(-best_bid_volume, -self.pos_limit[product] - self.pos[product])
-                    logger.print(f"{product.upper()}: SELLING at ${best_bid} x {sellable_volume}")
+                    sellable_volume = max(
+                        -best_bid_volume, -self.pos_limit[product] - self.pos[product]
+                    )
+                    ### To be removed for the actual submission
+                    ###
+                    logger.print(
+                        f"{product.upper()}: SELLING at ${best_bid} x {sellable_volume}"
+                    )
+                    ###
                     orders.append(Order(product, best_bid, sellable_volume))
-                    self.seashells += best_bid * (-sellable_volume)
+                    ### To be removed for the actual submission
+                    ###
+                    self.profits_and_losses_estimator.update(Order(product, best_bid, sellable_volume))
+                    ###
 
             # Add all the above orders to the result dict
             result[product] = orders
 
-        logger.print(f"SEASHELLS AT TIMESTAMP {self.timestamp}: {self.seashells}")
+
+        ### To be removed for the actual submission
+        ###
+        # Update the P&L estimator by liquidating the position at the end of the day
+        all_profits_and_losses: dict[Symbol, int] = self.profits_and_losses_estimator.get_all().copy()
+        if self.timestamp <= 99900:
+            for product in self.products:
+                # get last mid price
+                order_depth: OrderDepth = state.order_depths[product]
+                best_bid, best_bid_volume, best_ask, best_ask_volume = get_top_of_book(
+                    order_depth
+                )
+                mid_price = (best_bid + best_ask) / 2
+                # simulate liquidation
+                all_profits_and_losses[product] += self.pos[product] * mid_price
+                logger.print(
+                    f"SEASHELLS AFTER LIQUIDATION PRODUCT {product} {all_profits_and_losses[product]}"
+                )
+        else:
+            raise Exception(
+                "Problem with the self.timestamp incrementation (assuming online sandbox submission)"
+            )
+        ###
+
+        logger.flush(state, result)
 
         self.timestamp += 100
-        logger.flush(state, result)
+
         return result
