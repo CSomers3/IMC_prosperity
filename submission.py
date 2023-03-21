@@ -1,6 +1,31 @@
 from __future__ import annotations
+import json
+from datamodel import Order, ProsperityEncoder, TradingState, Symbol, OrderDepth
+from typing import Any, Dict, List
 
-from datamodel import OrderDepth, TradingState, Order
+class Logger:
+    def __init__(self) -> None:
+        self.logs = ""
+
+    def print(self, *objects: Any, sep: str = " ", end: str = "\n") -> None:
+        self.logs += sep.join(map(str, objects)) + end
+
+    def flush(self, state: TradingState, orders: Dict[Symbol, List[Order]]) -> None:
+        logs = self.logs
+        if logs.endswith("\n"):
+            logs = logs[:-1]
+
+        print(json.dumps({
+            "state": state,
+            "orders": orders,
+            "logs": logs,
+        }, cls=ProsperityEncoder, separators=(",", ":"), sort_keys=True))
+
+        self.state = None
+        self.orders = {}
+        self.logs = ""
+
+logger = Logger()
 
 
 def get_top_of_book(order_depth: OrderDepth) -> tuple[int | None, int, int | None, int]:
@@ -37,7 +62,7 @@ class Trader:
         """
 
         # Linebreak after each timestamp (printed on the IMC end)
-        print(".")
+        logger.print(".")
 
         # Initialize the method output dict as an empty dict
         result = {}
@@ -58,13 +83,13 @@ class Trader:
             best_ask_volume: int
             best_bid, best_bid_volume, best_ask, best_ask_volume = get_top_of_book(order_depth)
 
-            print(f"{product.upper()}: Volume limit {self.pos_limit[product]}; position {self.pos[product]}")
+            logger.print(f"{product.upper()}: Volume limit {self.pos_limit[product]}; position {self.pos[product]}")
 
             # Determine if a buy order should be placed
             if best_ask and best_ask < self.fair_value[product]:
                 if self.pos_limit[product] - self.pos[product] > 0:
                     buy_volume = min(-best_ask_volume, self.pos_limit[product] - self.pos[product])
-                    print(f"{product.upper()}: Buying at ${best_ask} x {buy_volume}")
+                    logger.print(f"{product.upper()}: Buying at ${best_ask} x {buy_volume}")
                     orders.append(Order(product, best_ask, buy_volume))
                     self.seashells -= best_ask * buy_volume
 
@@ -72,15 +97,15 @@ class Trader:
             if best_bid and best_bid > self.fair_value[product]:
                 if self.pos_limit[product] + self.pos[product] > 0:
                     sellable_volume = max(-best_bid_volume, -self.pos_limit[product] - self.pos[product])
-                    print(f"{product.upper()}: SELLING at ${best_bid} x {sellable_volume}")
+                    logger.print(f"{product.upper()}: SELLING at ${best_bid} x {sellable_volume}")
                     orders.append(Order(product, best_bid, sellable_volume))
                     self.seashells += best_bid * (-sellable_volume)
 
             # Add all the above orders to the result dict
             result[product] = orders
 
-        print(f"SEASHELLS AT TIMESTAMP {self.timestamp}: {self.seashells}")
+        logger.print(f"SEASHELLS AT TIMESTAMP {self.timestamp}: {self.seashells}")
 
         self.timestamp += 100
-
+        logger.flush(state, result)
         return result
