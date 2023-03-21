@@ -122,13 +122,33 @@ class Trader:
                     orders.append(Order(product, best_ask, buy_volume))
                     self.seashells -= best_ask * buy_volume
 
+                # Check if there's further liquidity on the order book
+                if len(order_depth.sell_orders) > 1:
+                    second_best_ask = sorted(order_depth.sell_orders.keys())[1]
+                    if second_best_ask < self.ask_ma[product] - self.std[product]:
+                        liquidity_volume = min(-order_depth.sell_orders[second_best_ask],
+                                               self.pos_limit[product] - self.pos[product])
+                        logger.print(f"{product.upper()}: Buying at ${second_best_ask} x {liquidity_volume} (2nd)")
+                        orders.append(Order(product, second_best_ask, liquidity_volume))
+                        self.seashells -= second_best_ask * liquidity_volume
+
             # Determine if a sell order should be placed
-            if best_bid and self.ask_ma and best_bid > self.bid_ma[product] + self.std[product]:
+            if best_bid and self.bid_ma and best_bid > self.bid_ma[product] + self.std[product]:
                 if self.pos_limit[product] + self.pos[product] > 0:
                     sellable_volume = max(-best_bid_volume, -self.pos_limit[product] - self.pos[product])
                     logger.print(f"{product.upper()}: SELLING at ${best_bid} x {sellable_volume}")
                     orders.append(Order(product, best_bid, sellable_volume))
                     self.seashells += best_bid * (-sellable_volume)
+
+                # Check if there's further liquidity on the order book
+                if len(order_depth.buy_orders) > 1:
+                    second_best_bid = sorted(order_depth.buy_orders.keys())[1]
+                    if second_best_bid > self.bid_ma[product] + self.std[product]:
+                        liquidity_volume = max(-order_depth.buy_orders[second_best_bid],
+                                               -self.pos_limit[product] - self.pos[product])
+                        logger.print(f"{product.upper()}: Selling at ${second_best_bid} x {liquidity_volume} (2nd)")
+                        orders.append(Order(product, second_best_bid, liquidity_volume))
+                        self.seashells += second_best_bid * -liquidity_volume
 
             # Add all the above orders to the result dict
             result[product] = orders
