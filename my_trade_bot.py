@@ -45,9 +45,8 @@ class Trader:
         # Iterate over all the keys (the available products) contained in the order dephts
         for product in state.order_depths.keys():
 
-            # Check if the current product is the 'PEARLS' product, only then run the order logic
-            if product == 'PEARLS' and len(state.order_depths[product].sell_orders) > 0 and len(state.order_depths[product].buy_orders) > 0:
-
+            if len(state.order_depths[product].sell_orders) > 0 and len(state.order_depths[product].buy_orders) > 0:
+                
                 # Retrieve the Order Depth containing all the market BUY and SELL orders for PEARLS
                 order_depth: OrderDepth = state.order_depths[product]
 
@@ -58,7 +57,7 @@ class Trader:
                 # Note that this value of 1 is just a dummy value, you should likely change it!
                 best_bid = max(order_depth.buy_orders) 
                 best_ask = min(order_depth.sell_orders)
-                fair_price = min((best_bid + best_ask) / 2, 0)
+                fair_price = max((best_bid + best_ask) / 2, 0)
 
                 if state.position.get(product, 0) > 0:
                     bid_acceptable_price = fair_price - 4 if fair_price - 4 >= 0 else 0
@@ -74,10 +73,10 @@ class Trader:
                 available_bid_lots = 20 - state.position.get(product, 0)
                 available_ask_lots = 20 + state.position.get(product, 0)
 
-                logger.print("BUY order! Price: ", bid_acceptable_price, "Volume: ", available_bid_lots)
+                logger.print("BUY order for ", product, "! Price: ", bid_acceptable_price, "Volume: ", available_bid_lots)
                 orders.append(Order(product, bid_acceptable_price, available_bid_lots))
 
-                logger.print("SELL order! Price: ", ask_acceptable_price, "Volume: ", -available_ask_lots)
+                logger.print("SELL order for ", product, "! Price: ", ask_acceptable_price, "Volume: ", -available_ask_lots)
                 orders.append(Order(product, ask_acceptable_price, -available_ask_lots))
 
                 # Add all the above the orders to the result dict
