@@ -1,6 +1,19 @@
 from __future__ import annotations
-import json
-from datamodel import Order, ProsperityEncoder, TradingState, Symbol, OrderDepth
+from datamodel import Order, TradingState, Symbol, OrderDepth
+
+
+### HYPERPARAMETERS
+###
+FAIR_VALUE_SHIFT_AT_CROSSOVER: dict[Symbol, int] = {
+    "BANANAS": 0,
+    "PEARLS": 0,
+}
+TIME_WHILST_USING_DEFAULT_FAIR_VALUE: int = 0
+SPREAD_ADJUSTMENT: dict[Symbol, float] = {
+    "BANANAS": 0.1,
+    "PEARLS": 0.1,
+}
+###
 
 
 ### To be removed for the actual submission
@@ -35,9 +48,11 @@ class ProfitsAndLossesEstimator:
 ###
 
 
-def get_top_of_book(order_depth: OrderDepth) -> tuple[list[tuple[int, int]], list[tuple[int, int]]]:
+def get_top_of_book(
+    order_depth: OrderDepth,
+) -> tuple[list[tuple[int, int]], list[tuple[int, int]], int]:
     """
-    Returns the top 3 best bids and asks of book & the corresponding volumes
+    Returns the best bids and asks of book & the corresponding volumes and the spread
     """
 
     # Get the top 3 bids
@@ -53,7 +68,26 @@ def get_top_of_book(order_depth: OrderDepth) -> tuple[list[tuple[int, int]], lis
     best_asks = [(price, order_depth.sell_orders[price]) for price in ask_prices]
 
     # Return the lists of best bids and asks
-    return best_bids, best_asks
+    return best_bids, best_asks, best_asks[0][0] - best_bids[0][0]
+
+
+def calculate_ema(prices: list[float], period: int, default_fair_value: float) -> float:
+    """
+    Calculates the Exponential Moving Average (EMA) for the given prices of a single product and period
+    """
+    if len(prices) < TIME_WHILST_USING_DEFAULT_FAIR_VALUE:
+        return default_fair_value
+    elif len(prices) < period:
+        return sum(prices) / len(prices)
+
+    multiplier = 2 / (period + 1)
+    ema_prev = sum(prices[-period:]) / period
+
+    for price in prices[-period+1:]:
+        ema = (price - ema_prev) * multiplier + ema_prev
+        ema_prev = ema
+
+    return ema  # noqa, len(prices) >= period
 
 
 class Trader:
@@ -65,8 +99,37 @@ class Trader:
         )
         self.pos_limit = {product: 20 for product in self.products}
         self.pos = {}
-        self.fair_value = {"PEARLS": 9999.99, "BANANAS": 4938.30}
-        self.timestamp: int = 0
+        self.fair_value: dict[Symbol, float] = {
+            "PEARLS": 9999.99,
+            "BANANAS": 4938.30,
+        }  # To-do: calculate them on the CSVs provided
+
+        # EMA (Exponential Moving Average) parameters
+        self.ema_short_period = 8
+        self.ema_long_period = 20
+        self.historical_prices = {product: [] for product in self.products}
+
+    def update_fair_value(self, product: str) -> None:
+        """
+        Update the fair value of the given product using EMA.
+        """
+        short_ema = calculate_ema(
+            self.historical_prices[product], self.ema_short_period, default_fair_value=self.fair_value[product]
+        )
+        long_ema = calculate_ema(
+            self.historical_prices[product], self.ema_long_period, default_fair_value=self.fair_value[product]
+        )
+
+        self.fair_value[product] = (short_ema + long_ema) / 2
+
+        if short_ema > long_ema:
+            # Short EMA is above long EMA, so we are in a bullish trend, so we set the fair value a bit higher than the
+            # fair_value because we want to buy
+            self.fair_value[product] += FAIR_VALUE_SHIFT_AT_CROSSOVER[product]
+        else:
+            # Short EMA is below long EMA, so we are in a bearish trend, so we set the fair value a bit lower than the
+            # fair_value because we want to sell
+            self.fair_value[product] -= FAIR_VALUE_SHIFT_AT_CROSSOVER[product]
 
     def run(self, state: TradingState) -> dict[str, list[Order]]:
         """
@@ -92,19 +155,32 @@ class Trader:
                 f"{product.upper()}: Volume limit {self.pos_limit[product]}; position {self.pos[product]}"
             )
 
+            # Get the top of book for the current product
             order_depth: OrderDepth = state.order_depths[product]
             best_bids: list[tuple[int, int]]
             best_asks: list[tuple[int, int]]
-            best_bids, best_asks = get_top_of_book(order_depth)
+            best_bids, best_asks, spread = get_top_of_book(order_depth)
+
+            # Update the historical prices for the current product
+            last_price = (best_bids[0][0] + best_asks[0][0]) / 2
+            self.historical_prices[product].append(last_price)
+
+            # Update the fair value for the current product
+            self.update_fair_value(product)
+
+            # Adjusted fair values
+            adjusted_fair_value_buy = self.fair_value[product] - (spread * SPREAD_ADJUSTMENT[product])
+            # high spread then fair value smaller so buy less
+            adjusted_fair_value_sell = self.fair_value[product] + (spread * SPREAD_ADJUSTMENT[product])
+            # high spread then fair value bigger so sell less
 
             # We are going to iterate through the sorted lists of best asks and best bids and place orders accordingly,
             # stopping when the price is no longer favorable.
-
             # Determine if a buy order should be placed
             ask_price: int
             ask_volume: int
             for ask_price, ask_volume in best_asks:
-                if ask_price < self.fair_value[product]:
+                if ask_price < adjusted_fair_value_buy:
                     if self.pos[product] < self.pos_limit[product]:
                         # We can still buy stuff
                         buy_volume = min(
@@ -131,7 +207,7 @@ class Trader:
             bid_price: int
             bid_volume: int
             for bid_price, bid_volume in best_bids:
-                if bid_price > self.fair_value[product]:
+                if bid_price > adjusted_fair_value_sell:
                     if self.pos[product] > -self.pos_limit[product]:
                         # We can still sell stuff
                         sellable_volume = max(
@@ -163,7 +239,7 @@ class Trader:
         all_profits_and_losses: dict[
             Symbol, int
         ] = self.profits_and_losses_estimator.get_all().copy()
-        if self.timestamp <= 99900:
+        if state.timestamp <= 99900:
             for product in self.products:
                 # get last mid price
                 order_depth: OrderDepth = state.order_depths[product]
@@ -180,8 +256,6 @@ class Trader:
                 "Problem with the self.timestamp incrementation (assuming online sandbox submission)"
             )
         ###
-
-        self.timestamp += 100
 
         print("\n")
 
