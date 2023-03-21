@@ -1,6 +1,33 @@
 from __future__ import annotations
+import json
+from datamodel import OrderDepth, TradingState, Order, ProsperityEncoder, Symbol
+from typing import Any, Dict, List
 
-from datamodel import OrderDepth, TradingState, Order
+
+class Logger:
+    def __init__(self) -> None:
+        self.orders = {}
+        self.state = None
+        self.logs = ""
+
+    def print(self, *objects: Any, sep: str = " ", end: str = "\n") -> None:
+        self.logs += sep.join(map(str, objects)) + end
+
+    def flush(self, state: TradingState, orders: Dict[Symbol, List[Order]]) -> None:
+        logs = self.logs
+        if logs.endswith("\n"):
+            logs = logs[:-1]
+
+        print(json.dumps({
+            "state": state,
+            "orders": orders,
+            "logs": logs,
+        }, cls=ProsperityEncoder, separators=(",", ":"), sort_keys=True))
+
+        self.logs = ""
+
+
+logger = Logger()
 
 
 def get_top_of_book(order_depth: OrderDepth) -> tuple[int | None, int, int | None, int]:
@@ -19,19 +46,21 @@ def track_bid_ask(self, product, new_bid_price, new_ask_price):
     """
     Updates the best bid/ask prices and the moving averages
     """
-    # Add new prices to the lists
-    self.best_bid_prices[product].append(new_bid_price)
-    self.best_ask_prices[product].append(new_ask_price)
+    if product == "BANANAS":
+        # Add new prices to the lists
+        self.best_bid_prices[product].append(new_bid_price)
+        self.best_ask_prices[product].append(new_ask_price)
 
-    # Limit the length of the lists to the window size
-    max_len = min(len(self.best_bid_prices[product]), 10)
-    self.best_bid_prices[product] = self.best_bid_prices[product][-max_len:]
-    self.best_ask_prices[product] = self.best_ask_prices[product][-max_len:]
+        # Limit the length of the lists to the window size
+        max_len = min(len(self.best_bid_prices[product]), 10)
+        self.best_bid_prices[product] = self.best_bid_prices[product][-max_len:]
+        self.best_ask_prices[product] = self.best_ask_prices[product][-max_len:]
 
-    # Calculate the moving averages
-    self.bid_ma[product] = sum(self.best_bid_prices[product]) / max_len if max_len > 0 else None
-    self.ask_ma[product] = sum(self.best_ask_prices[product]) / max_len if max_len > 0 else None
-    return
+        # Calculate the moving averages
+        self.bid_ma[product] = sum(self.best_bid_prices[product]) / max_len if max_len > 0 else None
+        self.ask_ma[product] = sum(self.best_ask_prices[product]) / max_len if max_len > 0 else None
+    else:
+        return
 
 
 class Trader:
@@ -41,9 +70,9 @@ class Trader:
         self.pos_limit = {product: 20 for product in self.products}
         self.best_bid_prices = {"PEARLS": [], "BANANAS": []}
         self.best_ask_prices = {"PEARLS": [], "BANANAS": []}
-        self.bid_ma = {"PEARLS": 0, "BANANAS": 0}
-        self.ask_ma = {"PEARLS": 0, "BANANAS": 0}
-        self.std = {"PEARLS": 1.296, "BANANAS": 2}
+        self.bid_ma = {"PEARLS": 9996.5784, "BANANAS": 0}
+        self.ask_ma = {"PEARLS": 10003.3944, "BANANAS": 0}
+        self.std = {"PEARLS": 1.578400, "BANANAS": 2}
         self.pos = {}
 
         self.seashells: int = 0
@@ -60,7 +89,7 @@ class Trader:
         """
 
         # Linebreak after each timestamp (printed on the IMC end)
-        print(".")
+        logger.print(".")
 
         # Initialize the method output dict as an empty dict
         result = {}
@@ -83,38 +112,30 @@ class Trader:
 
             track_bid_ask(self, product, best_bid, best_ask)
 
-            print(f"{product.upper()}: Volume limit {self.pos_limit[product]}; position {self.pos[product]}")
+            logger.print(f"{product.upper()}: Volume limit {self.pos_limit[product]}; position {self.pos[product]}")
 
             # Determine if a buy order should be placed
-            if best_ask and self.ask_ma and best_ask < self.ask_ma[product]-self.std[product]:
+            if best_ask and self.ask_ma and best_ask < self.ask_ma[product] - self.std[product]:
                 if self.pos_limit[product] - self.pos[product] > 0:
                     buy_volume = min(-best_ask_volume, self.pos_limit[product] - self.pos[product])
-                    print(f"{product.upper()}: Buying at ${best_ask} x {buy_volume}")
+                    logger.print(f"{product.upper()}: Buying at ${best_ask} x {buy_volume}")
                     orders.append(Order(product, best_ask, buy_volume))
                     self.seashells -= best_ask * buy_volume
 
             # Determine if a sell order should be placed
-            if best_bid and self.ask_ma and best_bid > self.bid_ma[product]+self.std[product]:
+            if best_bid and self.ask_ma and best_bid > self.bid_ma[product] + self.std[product]:
                 if self.pos_limit[product] + self.pos[product] > 0:
                     sellable_volume = max(-best_bid_volume, -self.pos_limit[product] - self.pos[product])
-                    print(f"{product.upper()}: SELLING at ${best_bid} x {sellable_volume}")
+                    logger.print(f"{product.upper()}: SELLING at ${best_bid} x {sellable_volume}")
                     orders.append(Order(product, best_bid, sellable_volume))
                     self.seashells += best_bid * (-sellable_volume)
 
             # Add all the above orders to the result dict
             result[product] = orders
 
-        if self.timestamp == 99900:
-            print("END OF SESSION")
-            # Calculate the total profit/loss
-            for product, position in self.pos.items():
-                if position > 0:
-                    self.seashells += self.best_bid_prices[product][-1] * position
-                elif position < 0:
-                    self.seashells -= self.best_ask_prices[product][-1] * position
-            print(f"SEASHELLS AT TIMESTAMP {self.timestamp}: {self.seashells}")
-        else:
-            print(f"SEASHELLS AT TIMESTAMP {self.timestamp}: {self.seashells}")
-            self.timestamp += 100
+        logger.print(f"SEASHELLS AT TIMESTAMP {self.timestamp}: {self.seashells}")
+        self.timestamp += 100
+
+        logger.flush(state, result)
 
         return result
