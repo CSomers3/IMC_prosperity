@@ -58,8 +58,8 @@ if __name__ == "__main__":
                 order_depths: dict[Symbol, OrderDepth] = {}
                 for product in products:
                     initial_order_depth = OrderDepth()
-                    # Find the first row of df_simulation where the product is the one we are looking for (right product and
-                    # right timestamp)
+                    # Find the first row of df_simulation where the product is the one we are looking for (right product
+                    # and right timestamp)
                     row: pd.DataFrame = df_simulation[
                         (df_simulation["product"] == product) & (df_simulation["timestamp"] == timestamp)
                     ]
