@@ -1,7 +1,6 @@
 from __future__ import annotations
 from datamodel import Order, TradingState, Symbol, OrderDepth
 
-
 ### HYPERPARAMETERS
 ###
 # Initialize hyperparameters
@@ -14,6 +13,8 @@ SPREAD_ADJUSTMENT: dict[Symbol, float] = {
     "BANANAS": 0,
     "PEARLS": 0,
 }
+
+
 ###
 
 
@@ -30,10 +31,10 @@ class ProfitsAndLossesEstimator:
         Updates the P&L for the given order.
         """
         self.profits_and_losses[order.symbol] = self.profits_and_losses[
-            order.symbol
-        ] + order.price * (  # current P&L for this symbol
-            -order.quantity
-        )  # if we buy we lose money, if we sell we gain money
+                                                    order.symbol
+                                                ] + order.price * (  # current P&L for this symbol
+                                                    -order.quantity
+                                                )  # if we buy we lose money, if we sell we gain money
 
     def get(self, symbol: Symbol) -> int:
         """
@@ -46,11 +47,13 @@ class ProfitsAndLossesEstimator:
         Returns the current P&L for all symbols.
         """
         return self.profits_and_losses
+
+
 ###
 
 
 def get_top_of_book(
-    order_depth: OrderDepth,
+        order_depth: OrderDepth,
 ) -> tuple[list[tuple[int, int]], list[tuple[int, int]], int]:
     """
     Returns the best bids and asks of book & the corresponding volumes and the spread
@@ -84,11 +87,27 @@ def calculate_ema(prices: list[float], period: int, default_fair_value: float) -
     multiplier = 2 / (period + 1)
     ema_prev = sum(prices[-period:]) / period
 
-    for price in prices[-period+1:]:
+    for price in prices[-period + 1:]:
         ema = (price - ema_prev) * multiplier + ema_prev
         ema_prev = ema
 
     return ema  # noqa, len(prices) >= period
+
+def market_make(self, bids, asks, product):
+    """
+    Based on positions, make market
+    """
+    bid_size = int(10 * (1 - self.pos[product] / 20))
+    ask_size = -int(10 * (1 + self.pos[product] / 20))
+
+    bid = bids[0][0] + 1
+    ask = asks[0][0] - 1
+
+    print(f"MAKING MARKET FOR {product} WITH BID {bid} AND ASK {ask}")
+
+    orders = [Order(product, bid, bid_size), Order(product, ask, ask_size)]
+
+    return orders
 
 
 class Trader:
@@ -100,8 +119,10 @@ class Trader:
         )
         self.pos_limit = {product: 20 for product in self.products}
         self.pos = {}
+        self.min_profit = 0
+        self.spread = 5
         self.fair_value: dict[Symbol, float] = {
-            "PEARLS": 9999.99,
+            "PEARLS": 10000,
             "BANANAS": 4938.30,
         }  # To-do: calculate them on the CSVs provided
 
@@ -132,7 +153,7 @@ class Trader:
             # fair_value because we want to sell
             self.fair_value[product] -= FAIR_VALUE_SHIFT_AT_CROSSOVER[product]
 
-    def run(self, state: TradingState) -> dict[str, list[Order]]:
+    def run(self, state: TradingState) -> tuple[dict[str, list[Order]], dict[str, int]]:
         """
         Only method required. It takes all buy and sell orders for all symbols as an input,
         and outputs a list of orders to be sent
@@ -169,67 +190,93 @@ class Trader:
             # Update the fair value for the current product
             self.update_fair_value(product)
 
-            # Adjusted fair values
-            adjusted_fair_value_buy = self.fair_value[product] - (spread * SPREAD_ADJUSTMENT[product])
-            # high spread then fair value smaller so buy less
-            adjusted_fair_value_sell = self.fair_value[product] + (spread * SPREAD_ADJUSTMENT[product])
-            # high spread then fair value bigger so sell less
+            if product == "PEARLS":
+                if len(best_asks) > 0:
+                    # buy everything below our price
+                    for ask, vol in best_asks:
+                        if ask < self.fair_value[product] - self.min_profit:
+                            order_size = min(-vol, self.pos_limit[product] - self.pos[product])
+                            if order_size > 0:
+                                self.pos[product] += order_size
+                                print(f"{product.upper()}: Buying at ${ask} x {order_size}")
+                                orders.append(Order(product, ask, order_size))
+                if len(best_bids) > 0:
+                    # sell everything above our price
+                    for bid, vol in best_bids:
+                        if bid > (self.fair_value[product] + self.min_profit):
+                            order_size = min(vol, self.pos_limit[product] - self.pos[product])
+                            if order_size > 0:
+                                self.pos[product] -= order_size
+                                print(f"{product.upper()}: Selling at ${bid} x {order_size}")
+                                orders.append(Order(product, bid, -order_size))
 
-            # We are going to iterate through the sorted lists of best asks and best bids and place orders accordingly,
-            # stopping when the price is no longer favorable.
-            # Determine if a buy order should be placed
-            ask_price: int
-            ask_volume: int
-            for ask_price, ask_volume in best_asks:
-                if ask_price < adjusted_fair_value_buy:
-                    if self.pos[product] < self.pos_limit[product]:
-                        # We can still buy stuff
-                        buy_volume = min(
-                            -ask_volume, self.pos_limit[product] - self.pos[product]
-                        )
-                        # Update value of self.pos[product] to reflect the new position
-                        self.pos[product] = self.pos[product] + buy_volume
-                        # Place the order
-                        orders.append(Order(product, ask_price, buy_volume))
+                if spread > self.spread:
+                    # We have a spread, so we need to adjust the fair value by market making that spread
+                    mm = market_make(self, best_bids, best_asks, product)
+                    orders.extend(mm)
 
-                        ## To be removed for the actual submission
-                        ##
-                        # print(
-                        #     f"{product.upper()}: Buying at ${ask_price} x {buy_volume}"
-                        # )
-                        self.profits_and_losses_estimator.update(
-                            Order(product, ask_price, buy_volume)
-                        )
-                        ##
-                else:
-                    break
+            if product == "BANANAS":
+                # Adjusted fair values
+                adjusted_fair_value_buy = self.fair_value[product] - (spread * SPREAD_ADJUSTMENT[product])
+                # high spread then fair value smaller so buy less
+                adjusted_fair_value_sell = self.fair_value[product] + (spread * SPREAD_ADJUSTMENT[product])
+                # high spread then fair value bigger so sell less
 
-            # Determine if a sell order should be placed
-            bid_price: int
-            bid_volume: int
-            for bid_price, bid_volume in best_bids:
-                if bid_price > adjusted_fair_value_sell:
-                    if self.pos[product] > -self.pos_limit[product]:
-                        # We can still sell stuff
-                        sellable_volume = max(
-                            -bid_volume, -self.pos_limit[product] - self.pos[product]
-                        )
-                        # Update value of self.pos[product] to reflect the new position
-                        self.pos[product] = self.pos[product] + sellable_volume
-                        # Place the order
-                        orders.append(Order(product, bid_price, sellable_volume))
+                # We are going to iterate through the sorted lists of best asks and best bids and place orders accordingly,
+                # stopping when the price is no longer favorable.
+                # Determine if a buy order should be placed
+                ask_price: int
+                ask_volume: int
+                for ask_price, ask_volume in best_asks:
+                    if ask_price < adjusted_fair_value_buy:
+                        if self.pos[product] < self.pos_limit[product]:
+                            # We can still buy stuff
+                            buy_volume = min(
+                                -ask_volume, self.pos_limit[product] - self.pos[product]
+                            )
+                            # Update value of self.pos[product] to reflect the new position
+                            self.pos[product] = self.pos[product] + buy_volume
+                            # Place the order
+                            orders.append(Order(product, ask_price, buy_volume))
 
-                        ## To be removed for the actual submission
-                        ##
-                        # print(
-                        #     f"{product.upper()}: SELLING at ${bid_price} x {sellable_volume}"
-                        # )
-                        self.profits_and_losses_estimator.update(
-                            Order(product, bid_price, sellable_volume)
-                        )
-                        ##
-                else:
-                    break
+                            ## To be removed for the actual submission
+                            ##
+                            # print(
+                            #     f"{product.upper()}: Buying at ${ask_price} x {buy_volume}"
+                            # )
+                            self.profits_and_losses_estimator.update(
+                                Order(product, ask_price, buy_volume)
+                            )
+                            ##
+                    else:
+                        break
+
+                # Determine if a sell order should be placed
+                bid_price: int
+                bid_volume: int
+                for bid_price, bid_volume in best_bids:
+                    if bid_price > adjusted_fair_value_sell:
+                        if self.pos[product] > -self.pos_limit[product]:
+                            # We can still sell stuff
+                            sellable_volume = max(
+                                -bid_volume, -self.pos_limit[product] - self.pos[product]
+                            )
+                            # Update value of self.pos[product] to reflect the new position
+                            self.pos[product] = self.pos[product] + sellable_volume
+                            # Place the order
+                            orders.append(Order(product, bid_price, sellable_volume))
+
+                            ## To be removed for the actual submission
+                            ##
+                            # print(
+                            #     f"{product.upper()}: SELLING at ${bid_price} x {sellable_volume}"
+                            # )
+                            self.profits_and_losses_estimator.update(
+                                Order(product, bid_price, sellable_volume)
+                            )
+                            ##
+                    else:
+                        break
 
             # Add all the above orders to the result dict
             result[product] = orders
