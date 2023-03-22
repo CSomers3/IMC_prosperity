@@ -4,15 +4,20 @@ from datamodel import Order, TradingState, Symbol, OrderDepth
 
 ### HYPERPARAMETERS
 ###
+# Initialize hyperparameters
 FAIR_VALUE_SHIFT_AT_CROSSOVER: dict[Symbol, int] = {
     "BANANAS": 0,
     "PEARLS": 0,
 }
 TIME_WHILST_USING_DEFAULT_FAIR_VALUE: int = 0
 SPREAD_ADJUSTMENT: dict[Symbol, float] = {
-    "BANANAS": 0.1,
-    "PEARLS": 0.1,
+    "BANANAS": 0,
+    "PEARLS": 0,
 }
+# Print hyperparameters
+print("FAIR_VALUE_SHIFT_AT_CROSSOVER:", FAIR_VALUE_SHIFT_AT_CROSSOVER)
+print("TIME_WHILST_USING_DEFAULT_FAIR_VALUE:", TIME_WHILST_USING_DEFAULT_FAIR_VALUE)
+print("SPREAD_ADJUSTMENT:", SPREAD_ADJUSTMENT)
 ###
 
 
@@ -138,7 +143,7 @@ class Trader:
         """
 
         # Linebreak after each timestamp (printed on the IMC end)
-        print(".")
+        # print(".")
 
         # Initialize the method output dict as an empty dict
         result = {}
@@ -151,9 +156,9 @@ class Trader:
 
             # Update the position for the current product
             self.pos[product] = state.position.get(product, 0)
-            print(
-                f"{product.upper()}: Volume limit {self.pos_limit[product]}; position {self.pos[product]}"
-            )
+            # print(
+            #     f"{product.upper()}: Volume limit {self.pos_limit[product]}; position {self.pos[product]}"
+            # )
 
             # Get the top of book for the current product
             order_depth: OrderDepth = state.order_depths[product]
@@ -193,9 +198,9 @@ class Trader:
 
                         ## To be removed for the actual submission
                         ##
-                        print(
-                            f"{product.upper()}: Buying at ${ask_price} x {buy_volume}"
-                        )
+                        # print(
+                        #     f"{product.upper()}: Buying at ${ask_price} x {buy_volume}"
+                        # )
                         self.profits_and_losses_estimator.update(
                             Order(product, ask_price, buy_volume)
                         )
@@ -220,9 +225,9 @@ class Trader:
 
                         ## To be removed for the actual submission
                         ##
-                        print(
-                            f"{product.upper()}: SELLING at ${bid_price} x {sellable_volume}"
-                        )
+                        # print(
+                        #     f"{product.upper()}: SELLING at ${bid_price} x {sellable_volume}"
+                        # )
                         self.profits_and_losses_estimator.update(
                             Order(product, bid_price, sellable_volume)
                         )
@@ -248,15 +253,17 @@ class Trader:
                 mid_price = (best_bid + best_ask) / 2
                 # simulate liquidation
                 all_profits_and_losses[product] += self.pos[product] * mid_price
-                print(
-                    f"SEASHELLS AFTER LIQUIDATION PRODUCT {product} {all_profits_and_losses[product]}"
-                )
+                # print(
+                #     f"SEASHELLS AFTER LIQUIDATION PRODUCT {product} {all_profits_and_losses[product]}"
+                # )
         else:
             raise Exception(
                 "Problem with the self.timestamp incrementation (assuming online sandbox submission)"
             )
         ###
 
-        print("\n")
+        # print("\n")
 
-        return result
+        ### Variable all_profits_and_losses need to be removed from the returns for the actual submission
+        return result, all_profits_and_losses
+        ###
