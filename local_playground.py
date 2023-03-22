@@ -23,7 +23,9 @@ if __name__ == "__main__":
         print(f"DATA FOR DAY {day}")
         df_simulation: pd.DataFrame = data[f"prices_round_1_day_{day}.csv"]
         for spread_bananas in (0, 0.02, 0.1):
-            for spread_pearls in (0, 0.02, 0.1):
+            for spread_pearls in (0, 0.02, 0.1):  # I just realized this is stupid, bananas and pearls are independent
+                # so i'm testing spread_bananas = 0 with spread_pearls = 0 then spread_bananas = 0 with
+                # spread_pearls = 0.02 etc. But we already know what the PnL for bananas will be.
                 submissionEMA.SPREAD_ADJUSTMENT = {
                     "BANANAS": spread_bananas,
                     "PEARLS": spread_pearls,
@@ -102,3 +104,4 @@ if __name__ == "__main__":
 
                 ## Print the PnL
                 print(all_profits_and_losses)  # noqa, there is at least one timestamp in the simulation
+                print("\n")
