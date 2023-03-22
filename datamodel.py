@@ -22,6 +22,11 @@ class Order:
         self.symbol = symbol
         self.price = price
         self.quantity = quantity
+        """
+        The quantity of the order: the maximum quantity that the algorithm wishes to buy or sell.
+        If the sign of the quantity is positive, the order is a buy order, if the sign of the quantity is negative,
+        it is a sell order.
+        """
 
     def __str__(self) -> str:
         return (
