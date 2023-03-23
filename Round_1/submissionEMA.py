@@ -183,10 +183,6 @@ class Trader:
                                 self.pos[product] += sellable_volume
                                 print(f"{product.upper()}: Selling at ${bid} x {sellable_volume}")
                                 orders.append(Order(product, bid, sellable_volume))
-                if spread > self.spread:
-                    # We have a spread, so we need to adjust the fair value by market making that spread
-                    mm = self.market_make(best_bids, best_asks, product)
-                    orders.extend(mm)
 
             elif product == "BANANAS":
                 # Adjusted fair values
@@ -238,6 +234,11 @@ class Trader:
                             )
                     else:
                         break
+
+            if spread > self.spread:
+                # We have a spread, so we need to adjust the fair value by market making that spread
+                mm = self.market_make(best_bids, best_asks, product)
+                orders.extend(mm)
 
             # Add all the above orders to the result dict
             result[product] = orders
