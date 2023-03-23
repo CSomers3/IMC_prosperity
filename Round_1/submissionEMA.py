@@ -23,6 +23,24 @@ PERCENT_PUT_WHEN_MM: dict[Symbol, float] = {
     "COCONUTS": 10,
     "PINA_COLADAS": 10
 }
+SPREAD_TO_MM: dict[Symbol, int] = {
+    "BANANAS": 5,
+    "PEARLS": 5,
+    "COCONUTS": 5,
+    "PINA_COLADAS": 5
+}
+EMA_SHORT_PERIOD: dict[Symbol, int] = {
+    "BANANAS": 8,
+    "PEARLS": 8,
+    "COCONUTS": 8,
+    "PINA_COLADAS": 8
+}
+EMA_LONG_PERIOD: dict[Symbol, int] = {
+    "BANANAS": 20,
+    "PEARLS": 20,
+    "COCONUTS": 20,
+    "PINA_COLADAS": 20
+}
 ###
 
 
@@ -76,17 +94,13 @@ class Trader:
         self.pos_limit = {product: 20 for product in self.products}
         self.pos = {}
         self.min_profit = 0
-        self.spread = 5
+        self.spread = SPREAD_TO_MM
         self.fair_value: dict[Symbol, float] = {
             "PEARLS": 10000,
             "BANANAS": 4938.30,
             "COCONUTS": 0,
             "PINA_COLADAS": 0
         }  # To-do: calculate them on the CSVs provided
-
-        # EMA (Exponential Moving Average) parameters
-        self.ema_short_period = 8
-        self.ema_long_period = 20
         self.historical_prices = {product: [] for product in self.products}
 
     def update_fair_value(self, product: str) -> None:
@@ -94,10 +108,10 @@ class Trader:
         Update the fair value of the given product using EMA.
         """
         short_ema = calculate_ema(
-            self.historical_prices[product], self.ema_short_period, default_fair_value=self.fair_value[product]
+            self.historical_prices[product], EMA_SHORT_PERIOD[product], default_fair_value=self.fair_value[product]
         )
         long_ema = calculate_ema(
-            self.historical_prices[product], self.ema_long_period, default_fair_value=self.fair_value[product]
+            self.historical_prices[product], EMA_LONG_PERIOD[product], default_fair_value=self.fair_value[product]
         )
 
         self.fair_value[product] = (short_ema + long_ema) / 2
@@ -122,8 +136,8 @@ class Trader:
         """
         Based on positions, make market
         """
-        bid_size = int(PERCENT_PUT_WHEN_MM * (1 - self.pos[product] / self.pos_limit[product]))
-        ask_size = -int(PERCENT_PUT_WHEN_MM * (1 + self.pos[product] / self.pos_limit[product]))
+        bid_size = int(PERCENT_PUT_WHEN_MM[product] * (1 - self.pos[product] / self.pos_limit[product]))
+        ask_size = -int(PERCENT_PUT_WHEN_MM[product] * (1 + self.pos[product] / self.pos_limit[product]))
 
         if cleared_best_bid:
             if len(bids) > 1:
@@ -274,7 +288,7 @@ class Trader:
                     else:
                         break
 
-            if spread > self.spread:
+            if spread > SPREAD_TO_MM[product]:
                 # We have a spread, so we need to adjust the fair value by market making that spread
                 mm = self.market_make(best_bids, best_asks, product, cleared_best_ask, cleared_best_bid)
                 orders.extend(mm)
