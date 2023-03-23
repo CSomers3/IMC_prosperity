@@ -76,7 +76,7 @@ if __name__ == "__main__":
                     }
                     order_depths[product] = initial_order_depth
                 current_trading_state = TradingState(
-                    timestamp=0,
+                    timestamp=timestamp,
                     listings={},  # is not used anyway
                     order_depths=order_depths,
                     own_trades={},  # is not used anyway
