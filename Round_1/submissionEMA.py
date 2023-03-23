@@ -17,6 +17,12 @@ SPREAD_ADJUSTMENT: dict[Symbol, float] = {
     "COCONUTS": 0,
     "PINA_COLADAS": 0
 }
+PERCENT_PUT_WHEN_MM: dict[Symbol, float] = {
+    "BANANAS": 10,
+    "PEARLS": 10,
+    "COCONUTS": 10,
+    "PINA_COLADAS": 10
+}
 ###
 
 
@@ -105,15 +111,34 @@ class Trader:
             # fair_value because we want to sell
             self.fair_value[product] -= FAIR_VALUE_SHIFT_AT_CROSSOVER[product]
 
-    def market_make(self, bids: list[tuple[int, int]], asks: list[tuple[int, int]], product: str):
+    def market_make(
+            self,
+            bids: list[tuple[int, int]],
+            asks: list[tuple[int, int]],
+            product: str,
+            cleared_best_bid: bool,
+            cleared_best_ask: bool
+    ):
         """
         Based on positions, make market
         """
-        bid_size = int(10 * (1 - self.pos[product] / self.pos_limit[product]))
-        ask_size = -int(10 * (1 + self.pos[product] / self.pos_limit[product]))
+        bid_size = int(PERCENT_PUT_WHEN_MM * (1 - self.pos[product] / self.pos_limit[product]))
+        ask_size = -int(PERCENT_PUT_WHEN_MM * (1 + self.pos[product] / self.pos_limit[product]))
 
-        bid = bids[0][0] + 1
-        ask = asks[0][0] - 1
+        if cleared_best_bid:
+            if len(bids) > 1:
+                bid = bids[1][0] + 1
+            else:
+                bid = bids[0][0]
+        else:
+            bid = bids[0][0] + 1
+        if cleared_best_ask:
+            if len(asks) > 1:
+                ask = asks[1][0] - 1
+            else:
+                ask = asks[0][0]
+        else:
+            ask = asks[0][0] - 1
 
         print(f"MAKING MARKET FOR {product} WITH BID {bid} AND ASK {ask}")
 
@@ -131,13 +156,17 @@ class Trader:
         print(".")
 
         # Initialize the method output dict as an empty dict
-        result: dict[str, list[Order]] = {}
+        result: dict[str, list[Order]] = {product: [] for product in state.order_depths.keys()}
 
         # Iterate over all the available products
         product: str
         for product in state.order_depths.keys():
             # Initialize the list of Orders to be sent as an empty list
             orders: list[Order] = []
+
+            # Track if we cleared the best bid or ask
+            cleared_best_bid: bool = False
+            cleared_best_ask: bool = False
 
             # Update the position for the current product
             self.pos[product] = state.position.get(product, 0)
@@ -172,6 +201,8 @@ class Trader:
                             self.pos[product] += buy_volume
                             print(f"{product.upper()}: Buying at ${ask} x {buy_volume}")
                             orders.append(Order(product, ask, buy_volume))
+                            if buy_volume == -vol:
+                                cleared_best_ask = True
                 # sell everything above our price
                 bid: int
                 vol: int
@@ -185,6 +216,8 @@ class Trader:
                             self.pos[product] += sellable_volume
                             print(f"{product.upper()}: Selling at ${bid} x {sellable_volume}")
                             orders.append(Order(product, bid, sellable_volume))
+                            if sellable_volume == -vol:
+                                cleared_best_bid = True
 
             elif product == "BANANAS":
                 # Adjusted fair values
@@ -213,6 +246,8 @@ class Trader:
                             print(
                                 f"{product.upper()}: Buying at ${ask_price} x {buy_volume}"
                             )
+                            if buy_volume == -ask_volume:
+                                cleared_best_ask = True
                     else:
                         break
 
@@ -234,12 +269,14 @@ class Trader:
                             print(
                                 f"{product.upper()}: SELLING at ${bid_price} x {sellable_volume}"
                             )
+                            if sellable_volume == -bid_volume:
+                                cleared_best_bid = True
                     else:
                         break
 
             if spread > self.spread:
                 # We have a spread, so we need to adjust the fair value by market making that spread
-                mm = self.market_make(best_bids, best_asks, product)
+                mm = self.market_make(best_bids, best_asks, product, cleared_best_ask, cleared_best_bid)
                 orders.extend(mm)
 
             # Add all the above orders to the result dict
