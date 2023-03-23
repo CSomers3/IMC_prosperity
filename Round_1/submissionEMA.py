@@ -195,7 +195,10 @@ class Trader:
             # Update the fair value for the current product
             self.update_fair_value(product)
 
-            if product == "PEARLS":
+            if product == "PEARLS" or product == "BANANAS" or product == "COCONUTS" or product == "PINA_COLADAS":
+                # We are going to iterate through the sorted lists of best asks and best bids and place orders
+                # accordingly, stopping when the price is no longer favorable.
+
                 # buy everything below our price
                 ask: int
                 vol: int
@@ -226,55 +229,6 @@ class Trader:
                             orders.append(Order(product, bid, sellable_volume))
                             if sellable_volume == -vol:
                                 cleared_best_bid = True
-
-            elif product == "BANANAS":
-                # We are going to iterate through the sorted lists of best asks and best bids and place orders
-                # accordingly, stopping when the price is no longer favorable.
-                # Determine if a buy order should be placed
-                ask_price: int
-                ask_volume: int
-                for ask_price, ask_volume in best_asks:
-                    if ask_price < self.fair_value[product]:
-                        if self.pos[product] < self.pos_limit[product]:
-                            # We can still buy stuff
-                            buy_volume = min(
-                                -ask_volume, self.pos_limit[product] - self.pos[product]
-                            )
-                            # Update value of self.pos[product] to reflect the new position
-                            self.pos[product] = self.pos[product] + buy_volume
-                            # Place the order
-                            orders.append(Order(product, ask_price, buy_volume))
-                            # Print the order to the console
-                            print(
-                                f"{product.upper()}: Buying at ${ask_price} x {buy_volume}"
-                            )
-                            if buy_volume == -ask_volume:
-                                cleared_best_ask = True
-                    else:
-                        break
-
-                # Determine if a sell order should be placed
-                bid_price: int
-                bid_volume: int
-                for bid_price, bid_volume in best_bids:
-                    if bid_price > self.fair_value[product]:
-                        if self.pos[product] > -self.pos_limit[product]:
-                            # We can still sell stuff
-                            sellable_volume = max(
-                                -bid_volume, -self.pos_limit[product] - self.pos[product]
-                            )
-                            # Update value of self.pos[product] to reflect the new position
-                            self.pos[product] = self.pos[product] + sellable_volume
-                            # Place the order
-                            orders.append(Order(product, bid_price, sellable_volume))
-                            ## Print the order to the console
-                            print(
-                                f"{product.upper()}: SELLING at ${bid_price} x {sellable_volume}"
-                            )
-                            if sellable_volume == -bid_volume:
-                                cleared_best_bid = True
-                    else:
-                        break
 
             if spread > SPREAD_TO_MM[product]:
                 # We have a spread, so we need to adjust the fair value by market making that spread

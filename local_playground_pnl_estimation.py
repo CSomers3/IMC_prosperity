@@ -335,7 +335,6 @@ def run_pnl_estimation(
     if bananas_best_average_profit[1] < sum(
             [all_profits[i]["BANANAS"] for i in range(len(all_profits))]
     ) / len(all_profits):
-        print("NEW HIGHSCORE")
         bananas_best_average_profit[0] = (
             f"SPREAD_TO_MM = {min_spread}, "
             f"PERCENT_PUT_WHEN_MM = {percent_put_when_mm}, "
@@ -345,11 +344,11 @@ def run_pnl_estimation(
         bananas_best_average_profit[1] = sum(
             [all_profits[i]["BANANAS"] for i in range(len(all_profits))]
         ) / len(all_profits)
+        print("NEW BANANAS HIGHSCORE", bananas_best_average_profit)
 
     if pearls_best_average_profit[1] < sum(
             [all_profits[i]["PEARLS"] for i in range(len(all_profits))]
     ) / len(all_profits):
-        print("NEW HIGHSCORE")
         pearls_best_average_profit[0] = (
             f"SPREAD_TO_MM = {min_spread}, "
             f"PERCENT_PUT_WHEN_MM = {percent_put_when_mm}, "
@@ -359,3 +358,4 @@ def run_pnl_estimation(
         pearls_best_average_profit[1] = sum(
             [all_profits[i]["PEARLS"] for i in range(len(all_profits))]
         ) / len(all_profits)
+        print("NEW PEARLS HIGHSCORE", pearls_best_average_profit)
