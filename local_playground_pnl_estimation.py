@@ -63,7 +63,6 @@ def run_pnl_estimation(
                 "TIME_WHILST_USING_DEFAULT_FAIR_VALUE:",
                 Algo.TIME_WHILST_USING_DEFAULT_FAIR_VALUE,
             )
-            print("SPREAD_ADJUSTMENT:", Algo.SPREAD_ADJUSTMENT)
             print("SPREAD_TO_MM:", Algo.SPREAD_TO_MM)
             print("PERCENT_PUT_WHEN_MM:", Algo.PERCENT_PUT_WHEN_MM)
             print("EMA_SHORT_PERIOD:", Algo.EMA_SHORT_PERIOD)
