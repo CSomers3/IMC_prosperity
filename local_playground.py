@@ -23,8 +23,9 @@ if __name__ == "__main__":
             data[file] = pd.read_csv("Round_1/data/" + file, sep=";")
 
     ## Loop through the historic days
+    all_profits: list[dict[str, float]] = []
     day: str
-    for day in "-1", "0":
+    for day in "-2", "-1", "0":
         print("=====================================")
         print(f"DATA FOR DAY {day}")
         print("=====================================")
@@ -152,11 +153,8 @@ if __name__ == "__main__":
                                             order.quantity = 0
             # Sanity check
             for product in products:
-                try:
-                    assert current_trading_state.position[product] <= 20
-                    assert current_trading_state.position[product] >= -20
-                except:
-                    breakpoint()
+                assert current_trading_state.position[product] <= 20
+                assert current_trading_state.position[product] >= -20
 
             # Liquidate positions at the end of the timestamp to have an accurate estimation of PnL at the end
             # of the timestamp
@@ -183,4 +181,16 @@ if __name__ == "__main__":
 
         ## Print the PnL
         print("PROFITS:", all_profits_and_losses)  # noqa, there is at least one timestamp in the simulation
+        print("")
+        all_profits.append(all_profits_and_losses)
+
+
+    print("\n========================================")
+    print("========================================")
+    print("========================================\n")
+
+    for product in products:
+        print(f"PRODUCT {product}")
+        print("PROFITS:", [all_profits[i][product] for i in range(len(all_profits))])
+        print("AVERAGE PROFIT:", sum([all_profits[i][product] for i in range(len(all_profits))]) / len(all_profits))
         print("")
