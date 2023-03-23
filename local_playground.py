@@ -11,7 +11,7 @@ from local_playground_suppress_print_context_manager import suppress_output
 from datamodel import Order, TradingState, Symbol, OrderDepth
 
 
-SUPPRESS_PRINTS: bool = False
+SUPPRESS_PRINTS: bool = True
 
 
 if __name__ == "__main__":
@@ -21,6 +21,12 @@ if __name__ == "__main__":
     for file in os.listdir("Round_1/data"):
         if file.endswith(".csv") and file.startswith("prices"):
             data[file] = pd.read_csv("Round_1/data/" + file, sep=";")
+
+    ## Open trades_round to simulate the MM trades
+    data_trades: dict[str, pd.DataFrame] = {}
+    for file in os.listdir("Round_1/data"):
+        if file.endswith(".csv") and file.startswith("trades_round"):
+            data_trades[file] = pd.read_csv("Round_1/data/" + file, sep=";")
 
     ## Loop through the historic days
     all_profits: list[dict[str, float]] = []
@@ -94,7 +100,7 @@ if __name__ == "__main__":
             with suppress_output(SUPPRESS_PRINTS):
                 orders = trader.run(deepcopy(current_trading_state))  # get the orders from the trader
 
-            # Update the positions for the trades that go through (no market making here)
+            # Update the positions & PnL for the trades that go through (no market making here)
             for product in products:
                 if product in orders:
                     best_bids: list[tuple[int, int]]
@@ -151,6 +157,53 @@ if __name__ == "__main__":
                                                 best_bids[idx][1] + order.quantity
                                             )  # update the volume
                                             order.quantity = 0
+
+            # Update the positions & PnL for the trades that don't go through (market making here)
+            for product in products:
+                if product in orders:
+                    order: Order
+                    for order in orders[product]:
+                        if order.quantity != 0:
+                            # The order did not go through, so we market make
+                            if order.quantity > 0:
+                                # let's check in data_trades[f"trades_round_1_day_{day}"] if we find a trade with the
+                                # right timestamp and the right product and the right price (it's a buy order here,
+                                # so we want to find trades that were made at a lower price than the one we are)
+                                # If we find one, we add the quantity to our position and update the PnL
+                                trades = data_trades[f"trades_round_1_day_{day}_nn.csv"]
+                                trades = trades[trades["symbol"] == product]
+                                trades = trades[trades["timestamp"] == timestamp]
+                                trades = trades[trades["price"] <= order.price]  # if it's equal, we get it because
+                                # we never MM at the same price as a possible trade
+                                if len(trades) > 0:
+                                    # we buy what we can
+                                    volume_traded = min(
+                                        order.quantity,
+                                        trades["quantity"].sum(),
+                                    )
+                                    current_trading_state.position[product] += volume_traded
+                                    pnl_estimator.update(order, partial=volume_traded)
+                                    order.quantity -= -volume_traded
+                            elif order.quantity < 0:
+                                # let's check in data_trades[f"trades_round_1_day_{day}"] if we find a trade with the
+                                # right timestamp and the right product and the right price (it's a sell order here,
+                                # so we want to find trades that were made at a higher price than the one we are)
+                                # If we find one, we add the quantity to our position and update the PnL
+                                trades = data_trades[f"trades_round_1_day_{day}_nn.csv"]
+                                trades = trades[trades["symbol"] == product]
+                                trades = trades[trades["timestamp"] == timestamp]
+                                trades = trades[trades["price"] >= order.price]  # if it's equal, we get it because
+                                # we never MM at the same price as a possible trade
+                                if len(trades) > 0:
+                                    # we sell what we can
+                                    volume_traded = min(
+                                        -order.quantity,
+                                        trades["quantity"].sum()
+                                    )
+                                    current_trading_state.position[product] -= volume_traded
+                                    pnl_estimator.update(order, partial=-volume_traded)
+                                    order.quantity -= volume_traded
+
             # Sanity check
             for product in products:
                 assert current_trading_state.position[product] <= 20
