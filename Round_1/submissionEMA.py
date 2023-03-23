@@ -11,12 +11,6 @@ FAIR_VALUE_SHIFT_AT_CROSSOVER: dict[Symbol, int] = {
     "PINA_COLADAS": 0
 }
 TIME_WHILST_USING_DEFAULT_FAIR_VALUE: int = 0
-SPREAD_ADJUSTMENT: dict[Symbol, float] = {
-    "BANANAS": 0,
-    "PEARLS": 0,
-    "COCONUTS": 0,
-    "PINA_COLADAS": 0
-}
 PERCENT_PUT_WHEN_MM: dict[Symbol, float] = {
     "BANANAS": 20,
     "PEARLS": 20,
@@ -234,19 +228,13 @@ class Trader:
                                 cleared_best_bid = True
 
             elif product == "BANANAS":
-                # Adjusted fair values
-                adjusted_fair_value_buy = self.fair_value[product] - (spread * SPREAD_ADJUSTMENT[product])
-                # high spread then fair value smaller so buy less
-                adjusted_fair_value_sell = self.fair_value[product] + (spread * SPREAD_ADJUSTMENT[product])
-                # high spread then fair value bigger so sell less
-
                 # We are going to iterate through the sorted lists of best asks and best bids and place orders
                 # accordingly, stopping when the price is no longer favorable.
                 # Determine if a buy order should be placed
                 ask_price: int
                 ask_volume: int
                 for ask_price, ask_volume in best_asks:
-                    if ask_price < adjusted_fair_value_buy:
+                    if ask_price < self.fair_value[product]:
                         if self.pos[product] < self.pos_limit[product]:
                             # We can still buy stuff
                             buy_volume = min(
@@ -269,7 +257,7 @@ class Trader:
                 bid_price: int
                 bid_volume: int
                 for bid_price, bid_volume in best_bids:
-                    if bid_price > adjusted_fair_value_sell:
+                    if bid_price > self.fair_value[product]:
                         if self.pos[product] > -self.pos_limit[product]:
                             # We can still sell stuff
                             sellable_volume = max(
