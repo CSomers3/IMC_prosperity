@@ -18,8 +18,8 @@ SPREAD_ADJUSTMENT: dict[Symbol, float] = {
     "PINA_COLADAS": 0
 }
 PERCENT_PUT_WHEN_MM: dict[Symbol, float] = {
-    "BANANAS": 10,
-    "PEARLS": 10,
+    "BANANAS": 20,
+    "PEARLS": 20,
     "COCONUTS": 10,
     "PINA_COLADAS": 10
 }
@@ -31,13 +31,13 @@ SPREAD_TO_MM: dict[Symbol, int] = {
 }
 EMA_SHORT_PERIOD: dict[Symbol, int] = {
     "BANANAS": 8,
-    "PEARLS": 8,
+    "PEARLS": 12,
     "COCONUTS": 8,
     "PINA_COLADAS": 8
 }
 EMA_LONG_PERIOD: dict[Symbol, int] = {
-    "BANANAS": 20,
-    "PEARLS": 20,
+    "BANANAS": 12,
+    "PEARLS": 12,
     "COCONUTS": 20,
     "PINA_COLADAS": 20
 }
