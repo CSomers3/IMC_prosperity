@@ -11,32 +11,41 @@ FAIR_VALUE_SHIFT_AT_CROSSOVER: dict[Symbol, int] = {
     "BANANAS": 0,
     "PEARLS": 0,
     "COCONUTS": 0,
-    "PINA_COLADAS": 0
+    "PINA_COLADAS": 0,
+    "BERRIES": 0,
+    "DIVING_GEAR": 0
 }
-TIME_WHILST_USING_DEFAULT_FAIR_VALUE: int = 0
 PERCENT_PUT_WHEN_MM: dict[Symbol, float] = {  # not actually a percentage, but the number of shares when at 0
     "BANANAS": 20,
     "PEARLS": 20,
     "COCONUTS": 600,
-    "PINA_COLADAS": 300
+    "PINA_COLADAS": 300,
+    "BERRIES": 250,
+    "DIVING_GEAR": 50
 }
 SPREAD_TO_MM: dict[Symbol, int] = {
-    "BANANAS": 5,
+    "BANANAS": 3,
     "PEARLS": 5,
     "COCONUTS": 5,
-    "PINA_COLADAS": 5
+    "PINA_COLADAS": 5,
+    "BERRIES": 5,
+    "DIVING_GEAR": 5
 }
 EMA_SHORT_PERIOD: dict[Symbol, int] = {
-    "BANANAS": 8,
-    "PEARLS": 12,
+    "BANANAS": 12,
+    "PEARLS": 10,
     "COCONUTS": 15,
-    "PINA_COLADAS": 15
+    "PINA_COLADAS": 15,
+    "BERRIES": 15,
+    "DIVING_GEAR": 15
 }
 EMA_LONG_PERIOD: dict[Symbol, int] = {
     "BANANAS": 12,
     "PEARLS": 12,
     "COCONUTS": 50,
-    "PINA_COLADAS": 50
+    "PINA_COLADAS": 50,
+    "BERRIES": 50,
+    "DIVING_GEAR": 50
 }
 ###
 
@@ -65,13 +74,11 @@ def get_top_of_book(
     return best_bids, best_asks, best_asks[0][0] - best_bids[0][0]
 
 
-def calculate_ema(prices: list[float], period: int, default_fair_value: float) -> float:
+def calculate_ema(prices: list[float], period: int) -> float:
     """
     Calculates the Exponential Moving Average (EMA) for the given prices of a single product and period
     """
-    if len(prices) < TIME_WHILST_USING_DEFAULT_FAIR_VALUE:
-        return default_fair_value
-    elif len(prices) < period:
+    if len(prices) < period:
         return sum(prices) / len(prices)
 
     multiplier = 2 / (period + 1)
@@ -114,27 +121,35 @@ class Trader:
             "PEARLS",
             "BANANAS",
             "COCONUTS",
-            "PINA_COLADAS"
+            "PINA_COLADAS",
+            "BERRIES",
+            "DIVING_GEAR"
         ]
         self.pos_limit = {
             "PEARLS": 20,
             "BANANAS": 20,
             "COCONUTS": 600,
-            "PINA_COLADAS": 300
+            "PINA_COLADAS": 300,
+            "BERRIES": 250,
+            "DIVING_GEAR": 50
         }
         self.pos = {}
         self.min_profit = {
             "PEARLS": 0,
             "BANANAS": 0,
             "COCONUTS": 0,
-            "PINA_COLADAS": 0
+            "PINA_COLADAS": 0,
+            "BERRIES": 0,
+            "DIVING_GEAR": 0
         }
         self.spread = SPREAD_TO_MM
         self.fair_value: dict[Symbol, float] = {
             "PEARLS": 0,
             "BANANAS": 0,
             "COCONUTS": 0,
-            "PINA_COLADAS": 0
+            "PINA_COLADAS": 0,
+            "BERRIES": 0,
+            "DIVING_GEAR": 0
         }  # To-do: calculate them on the CSVs provided
         self.historical_prices = {product: [] for product in self.products}
 
@@ -143,10 +158,10 @@ class Trader:
         Update the fair value of the given product using EMA.
         """
         short_ema = calculate_ema(
-            self.historical_prices[product], EMA_SHORT_PERIOD[product], default_fair_value=self.fair_value[product]
+            self.historical_prices[product], EMA_SHORT_PERIOD[product]
         )
         long_ema = calculate_ema(
-            self.historical_prices[product], EMA_LONG_PERIOD[product], default_fair_value=self.fair_value[product]
+            self.historical_prices[product], EMA_LONG_PERIOD[product]
         )
 
         self.fair_value[product] = (short_ema + long_ema) / 2
@@ -262,7 +277,7 @@ class Trader:
             # Update the fair value for the current product
             self.update_fair_value(product)
 
-            if product == "PEARLS" or product == "BANANAS":
+            if product in ["PEARLS", "BANANAS", "DIVING_GEAR", "BERRIES"]:
                 # We are going to iterate through the sorted lists of best asks and best bids and place orders
                 # accordingly, stopping when the price is no longer favorable.
 
