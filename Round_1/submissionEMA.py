@@ -49,12 +49,12 @@ EMA_LONG_PERIOD: dict[Symbol, int] = {
     "DIVING_GEAR": 50
 }
 MIN_PROFIT: dict[Symbol, int] = {
-    "BANANAS": 1,
-    "PEARLS": 1,
-    "COCONUTS": 1,
-    "PINA_COLADAS": 1,
-    "BERRIES": 1,
-    "DIVING_GEAR": 1
+    "BANANAS": 0,
+    "PEARLS": 0,
+    "COCONUTS": 0,
+    "PINA_COLADAS": 0,
+    "BERRIES": 0,
+    "DIVING_GEAR": 0
 }
 ###
 
@@ -101,6 +101,10 @@ def calculate_ema(prices: list[float], period: int) -> float:
 
 
 def calculate_linear_regression(x, y):
+    """
+    Calculates the linear regression of the given x and y values
+    Returns the residuals of the regression for the past 10 timestamps
+    """
     if len(x) == 0 or len(y) == 0:
         return None
 
@@ -116,10 +120,13 @@ def calculate_linear_regression(x, y):
     slope = numerator / denominator
     intercept = y_mean - slope * x_mean
 
-    y_pred = [slope * x_i + intercept for x_i in x]
-    residuals = [y_i - y_pred_i for y_i, y_pred_i in zip(y, y_pred)]
+    residuals = []
+    for i in range(min(10, len(x), len(y))):  # x and y might have different lengths since one is updated before the
+        # other one, and this function is called between the two
+        y_pred = slope * x[i] + intercept
+        residuals.append(y[i] - y_pred)
 
-    return residuals  # if residuals are >0, then y_i is bigger than anticipated
+    return sum(residuals)/len(residuals)  # if residuals are >0, then y_i is bigger than anticipated
 
 
 
@@ -206,25 +213,27 @@ class Trader:
 
     def pairs_trading(self, product1: str, product2: str, threshold: float) -> tuple[Order, Order] | None:
         """
+        Assumption: product 1 predicts product 2
         Based on the residuals of the linear regression, return the orders to be placed.
         Return a tuple (order_product_1, order_product_2) if the residuals are significant enough.
         """
-        residuals = calculate_linear_regression(self.historical_prices[product1], self.historical_prices[product2])
+        residuals: float = calculate_linear_regression(
+            self.historical_prices[product1],
+            self.historical_prices[product2]
+        )  # averaged over past values, cf calculate_linear_regression
 
         if residuals is None:
             return None
 
-        last_residual = residuals[-1]
-
-        if last_residual > threshold:
+        if residuals > threshold:  # if residuals are >0, then product 2 is more expensive than anticipated by product 1
             # Long product1 and short product2
-            long_order = Order(product1, int(self.fair_value[product1] - MIN_PROFIT[product1]), 10)
-            short_order = Order(product2, math.ceil(self.fair_value[product1] + MIN_PROFIT[product2]), 0)
+            long_order = Order(product1, int(self.fair_value[product1] - MIN_PROFIT[product1]), -10)
+            short_order = Order(product2, math.ceil(self.fair_value[product2] + MIN_PROFIT[product2]), 10)
             return long_order, short_order
-        elif last_residual < -threshold:
+        elif residuals < -threshold:  # if residuals are <0, then product 2 is cheaper than anticipated by product 1
             # Short product1 and long product1
-            short_order = Order(product1, math.ceil(self.fair_value[product1] + MIN_PROFIT[product1]), -10)
-            long_order = Order(product2, int(self.fair_value[product2] - MIN_PROFIT[product2]), 0)
+            short_order = Order(product1, math.ceil(self.fair_value[product1] + MIN_PROFIT[product1]), 10)
+            long_order = Order(product2, int(self.fair_value[product2] - MIN_PROFIT[product2]), -10)
             return short_order, long_order
         else:
             return None
@@ -271,7 +280,7 @@ class Trader:
             # Update the fair value for the current product
             self.update_fair_value(product)
 
-            if product in ["PEARLS", "BANANAS", "DIVING_GEAR", "BERRIES"]:
+            if product in ["PEARLS", "BANANAS", "BERRIES"]:
                 # We are going to iterate through the sorted lists of best asks and best bids and place orders
                 # accordingly, stopping when the price is no longer favorable.
 
@@ -316,7 +325,7 @@ class Trader:
                 result[product] = orders
 
             elif product == "COCONUTS":
-                pairs_trade = self.pairs_trading("COCONUTS", "PINA_COLADAS", threshold=10)
+                pairs_trade = self.pairs_trading("COCONUTS", "PINA_COLADAS", threshold=5)
                 if pairs_trade is not None:
                     coconut_order, pinada_order = pairs_trade
                     result["COCONUTS"].append(coconut_order)
