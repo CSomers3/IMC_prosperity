@@ -29,64 +29,75 @@ if __name__ == "__main__":
     pearls_best_average_profit: list[str | float] = manager.list(["Test", 0])
     processes = []
 
+    list_min_profit: list[int] = [
+        0,
+        1,
+        2,
+        5
+    ]
     list_min_spread: list[int] = [
         3,
+        4,
         5,
-        8
+        6
     ]
     list_of_potential_percent_put_when_mm: list[int] = [
         0,
         5,
         10,
         15,
-        17,
         18,
-        19,
         20
     ]
     list_of_potential_ema_short_period: list[int] = [
-        3,
         5,
         8,
         10,
-        12
+        12,
+        15,
+        30,
     ]
     list_of_potential_ema_long_period: list[int] = [
         12,
-        13,
         15,
         20,
-        30
+        30,
+        50,
+        100,
+        1000,
     ]
-    for min_spread in list_min_spread:
-        for percent_put_when_mm in list_of_potential_percent_put_when_mm:
-            for ema_short_period in list_of_potential_ema_short_period:
-                for ema_long_period in list_of_potential_ema_long_period:
-                    process = mp.Process(
-                        target=run_pnl_estimation,
-                        args=(
-                            bananas_best_average_profit,
-                            pearls_best_average_profit,
-                            min_spread,
-                            ema_short_period,
-                            ema_long_period,
-                            percent_put_when_mm,
-                            data,
-                            data_trades,
-                        )
-                    )
-                    processes.append(process)
-                    process.start()
-                    # run_pnl_estimation(
-                    #     bananas_best_average_profit,
-                    #     pearls_best_average_profit,
-                    #     min_spread,
-                    #     ema_short_period,
-                    #     ema_long_period,
-                    #     percent_put_when_mm,
-                    #     data,
-                    #     data_trades,
-                    # )
+    for min_profit in list_min_profit:
+        for min_spread in list_min_spread:
+            for percent_put_when_mm in list_of_potential_percent_put_when_mm:
+                for ema_short_period in list_of_potential_ema_short_period:
+                    for ema_long_period in list_of_potential_ema_long_period:
+                        if ema_short_period < ema_long_period:
+                            process = mp.Process(
+                                target=run_pnl_estimation,
+                                args=(
+                                    bananas_best_average_profit,
+                                    pearls_best_average_profit,
+                                    min_profit,
+                                    min_spread,
+                                    ema_short_period,
+                                    ema_long_period,
+                                    percent_put_when_mm,
+                                    data,
+                                    data_trades,
+                                )
+                            )
+                            processes.append(process)
+                            process.start()
+                            # run_pnl_estimation(
+                            #     bananas_best_average_profit,
+                            #     pearls_best_average_profit,
+                            #     min_spread,
+                            #     ema_short_period,
+                            #     ema_long_period,
+                            #     percent_put_when_mm,
+                            #     data,
+                            #     data_trades,
+                            # )
 
     # Wait for all processes to finish
     for process in processes:

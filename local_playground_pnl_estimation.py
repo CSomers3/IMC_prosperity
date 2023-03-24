@@ -20,6 +20,7 @@ ROUND = 1
 def run_pnl_estimation(
         bananas_best_average_profit,
         pearls_best_average_profit,
+        min_profit,
         min_spread,
         ema_short_period,
         ema_long_period,
@@ -28,6 +29,7 @@ def run_pnl_estimation(
         data_trades,
 ):
     for product in "BANANAS", "PEARLS":
+        Algo.MIN_PROFIT[product] = min_profit
         Algo.SPREAD_TO_MM[product] = min_spread
         Algo.EMA_SHORT_PERIOD[product] = ema_short_period
         Algo.EMA_LONG_PERIOD[product] = ema_long_period
@@ -37,8 +39,8 @@ def run_pnl_estimation(
     all_profits: list[dict[str, float]] = []
     day: str
     for day in [
-        # "-2",
-        # "-1",
+        "-2",
+        "-1",
         "0"
     ]:
         with suppress_output(SUPPRESS_PRINTS):
@@ -56,6 +58,7 @@ def run_pnl_estimation(
 
         # Print hyperparameters
         with suppress_output(SUPPRESS_PRINTS):
+            print("MIN_PROFIT:", Algo.MIN_PROFIT)
             print(
                 "FAIR_VALUE_SHIFT_AT_CROSSOVER:",
                 Algo.FAIR_VALUE_SHIFT_AT_CROSSOVER,
@@ -96,9 +99,10 @@ def run_pnl_estimation(
                     (df_simulation["product"] == product)
                     & (df_simulation["timestamp"] == timestamp)
                     ]
-                assert (
-                        len(row) == 1
-                )  # We should have only one row in our dataframe
+                ### Commented out for speed
+                # assert (
+                #         len(row) == 1
+                # )  # We should have only one row in our dataframe
                 order_depth.buy_orders = {
                     int(row[f"bid_price_{i}"]): int(row[f"bid_volume_{i}"])
                     for i in range(1, 4)
@@ -273,17 +277,18 @@ def run_pnl_estimation(
                                     )
                                     order.quantity -= volume_traded
 
-            # Sanity check
-            for product in products:
-                assert current_trading_state.position[product] <= 20
-                assert current_trading_state.position[product] >= -20
+            #### COMMENTED OUT FOR SPEED
+            # # Sanity check
+            # for product in products:
+            #     assert current_trading_state.position[product] <= 20
+            #     assert current_trading_state.position[product] >= -20
 
             # Liquidate positions at the end of the timestamp to have an accurate estimation of PnL at
             # the end of the timestamp
-            all_profits_and_losses: dict[Symbol, int] = deepcopy(
-                pnl_estimator.get_all()
-            )
-            if current_trading_state.timestamp <= 1_000_000:
+            if current_trading_state.timestamp == 999900:
+                all_profits_and_losses: dict[Symbol, int] = deepcopy(
+                    pnl_estimator.get_all()
+                )
                 for product in products:
                     # get last mid price
                     order_depth = order_depths[product]

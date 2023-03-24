@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import statistics
 
 from datamodel import Order, TradingState, Symbol, OrderDepth
@@ -24,16 +25,16 @@ PERCENT_PUT_WHEN_MM: dict[Symbol, float] = {  # not actually a percentage, but t
     "DIVING_GEAR": 50
 }
 SPREAD_TO_MM: dict[Symbol, int] = {
-    "BANANAS": 3,
-    "PEARLS": 5,
+    "BANANAS": 4,
+    "PEARLS": 4,
     "COCONUTS": 5,
     "PINA_COLADAS": 5,
     "BERRIES": 5,
     "DIVING_GEAR": 5
 }
 EMA_SHORT_PERIOD: dict[Symbol, int] = {
-    "BANANAS": 12,
-    "PEARLS": 10,
+    "BANANAS": 10,
+    "PEARLS": 8,
     "COCONUTS": 15,
     "PINA_COLADAS": 15,
     "BERRIES": 15,
@@ -41,11 +42,19 @@ EMA_SHORT_PERIOD: dict[Symbol, int] = {
 }
 EMA_LONG_PERIOD: dict[Symbol, int] = {
     "BANANAS": 12,
-    "PEARLS": 12,
+    "PEARLS": 60,
     "COCONUTS": 50,
     "PINA_COLADAS": 50,
     "BERRIES": 50,
     "DIVING_GEAR": 50
+}
+MIN_PROFIT: dict[Symbol, int] = {
+    "BANANAS": 1,
+    "PEARLS": 1,
+    "COCONUTS": 1,
+    "PINA_COLADAS": 1,
+    "BERRIES": 1,
+    "DIVING_GEAR": 1
 }
 ###
 
@@ -134,23 +143,8 @@ class Trader:
             "DIVING_GEAR": 50
         }
         self.pos = {}
-        self.min_profit = {
-            "PEARLS": 0,
-            "BANANAS": 0,
-            "COCONUTS": 0,
-            "PINA_COLADAS": 0,
-            "BERRIES": 0,
-            "DIVING_GEAR": 0
-        }
         self.spread = SPREAD_TO_MM
-        self.fair_value: dict[Symbol, float] = {
-            "PEARLS": 0,
-            "BANANAS": 0,
-            "COCONUTS": 0,
-            "PINA_COLADAS": 0,
-            "BERRIES": 0,
-            "DIVING_GEAR": 0
-        }  # To-do: calculate them on the CSVs provided
+        self.fair_value: dict[Symbol, float] = {product: 0 for product in self.products}
         self.historical_prices = {product: [] for product in self.products}
 
     def update_fair_value(self, product: str) -> None:
@@ -224,13 +218,13 @@ class Trader:
 
         if last_residual > threshold:
             # Long product1 and short product2
-            long_order = Order(product1, self.fair_value[product1] - self.min_profit[product1], 10)
-            short_order = Order(product2, self.fair_value[product1] + self.min_profit[product2], 0)
+            long_order = Order(product1, int(self.fair_value[product1] - MIN_PROFIT[product1]), 10)
+            short_order = Order(product2, math.ceil(self.fair_value[product1] + MIN_PROFIT[product2]), 0)
             return long_order, short_order
         elif last_residual < -threshold:
             # Short product1 and long product1
-            short_order = Order(product1, self.fair_value[product1] + self.min_profit[product1], -10)
-            long_order = Order(product2, self.fair_value[product2] - self.min_profit[product2], 0)
+            short_order = Order(product1, math.ceil(self.fair_value[product1] + MIN_PROFIT[product1]), -10)
+            long_order = Order(product2, int(self.fair_value[product2] - MIN_PROFIT[product2]), 0)
             return short_order, long_order
         else:
             return None
@@ -285,7 +279,7 @@ class Trader:
                 ask: int
                 vol: int
                 for ask, vol in best_asks:  # vol is < 0
-                    if ask < self.fair_value[product] - self.min_profit[product]:
+                    if ask < self.fair_value[product] - MIN_PROFIT[product]:
                         # then buy it, if we can
                         buy_volume = min(
                             -vol, self.pos_limit[product] - self.pos[product]
@@ -301,7 +295,7 @@ class Trader:
                 bid: int
                 vol: int
                 for bid, vol in best_bids:  # vol is > 0
-                    if bid > self.fair_value[product] + self.min_profit[product]:
+                    if bid > self.fair_value[product] + MIN_PROFIT[product]:
                         # then sell it if we can
                         sellable_volume = max(
                             -vol, -self.pos_limit[product] - self.pos[product]
