@@ -1,4 +1,7 @@
 from __future__ import annotations
+
+import statistics
+
 from datamodel import Order, TradingState, Symbol, OrderDepth
 
 ### HYPERPARAMETERS
@@ -11,11 +14,11 @@ FAIR_VALUE_SHIFT_AT_CROSSOVER: dict[Symbol, int] = {
     "PINA_COLADAS": 0
 }
 TIME_WHILST_USING_DEFAULT_FAIR_VALUE: int = 0
-PERCENT_PUT_WHEN_MM: dict[Symbol, float] = {
+PERCENT_PUT_WHEN_MM: dict[Symbol, float] = {  # not actually a percentage, but the number of shares when at 0
     "BANANAS": 20,
     "PEARLS": 20,
-    "COCONUTS": 10,
-    "PINA_COLADAS": 10
+    "COCONUTS": 600,
+    "PINA_COLADAS": 300
 }
 SPREAD_TO_MM: dict[Symbol, int] = {
     "BANANAS": 5,
@@ -26,14 +29,14 @@ SPREAD_TO_MM: dict[Symbol, int] = {
 EMA_SHORT_PERIOD: dict[Symbol, int] = {
     "BANANAS": 8,
     "PEARLS": 12,
-    "COCONUTS": 8,
-    "PINA_COLADAS": 8
+    "COCONUTS": 15,
+    "PINA_COLADAS": 15
 }
 EMA_LONG_PERIOD: dict[Symbol, int] = {
     "BANANAS": 12,
     "PEARLS": 12,
-    "COCONUTS": 20,
-    "PINA_COLADAS": 20
+    "COCONUTS": 50,
+    "PINA_COLADAS": 50
 }
 ###
 
@@ -81,17 +84,55 @@ def calculate_ema(prices: list[float], period: int, default_fair_value: float) -
     return ema  # noqa, len(prices) >= period
 
 
+def calculate_linear_regression(x, y):
+    if len(x) == 0 or len(y) == 0:
+        return None
+
+    x_mean = statistics.mean(x)
+    y_mean = statistics.mean(y)
+
+    numerator = sum((x_i - x_mean) * (y_i - y_mean) for x_i, y_i in zip(x, y))
+    denominator = sum((x_i - x_mean)**2 for x_i in x)
+
+    if denominator == 0:
+        return None
+
+    slope = numerator / denominator
+    intercept = y_mean - slope * x_mean
+
+    y_pred = [slope * x_i + intercept for x_i in x]
+    residuals = [y_i - y_pred_i for y_i, y_pred_i in zip(y, y_pred)]
+
+    return residuals  # if residuals are >0, then y_i is bigger than anticipated
+
+
+
 class Trader:
     def __init__(self):
         # Initialize position limit and position for each product
-        self.products = ["PEARLS", "BANANAS", "COCONUTS", "PINA_COLADAS"]
-        self.pos_limit = {product: 20 for product in self.products}
+        self.products = [
+            "PEARLS",
+            "BANANAS",
+            "COCONUTS",
+            "PINA_COLADAS"
+        ]
+        self.pos_limit = {
+            "PEARLS": 20,
+            "BANANAS": 20,
+            "COCONUTS": 600,
+            "PINA_COLADAS": 300
+        }
         self.pos = {}
-        self.min_profit = 0
+        self.min_profit = {
+            "PEARLS": 0,
+            "BANANAS": 0,
+            "COCONUTS": 0,
+            "PINA_COLADAS": 0
+        }
         self.spread = SPREAD_TO_MM
         self.fair_value: dict[Symbol, float] = {
-            "PEARLS": 10000,
-            "BANANAS": 4938.30,
+            "PEARLS": 0,
+            "BANANAS": 0,
             "COCONUTS": 0,
             "PINA_COLADAS": 0
         }  # To-do: calculate them on the CSVs provided
@@ -154,6 +195,32 @@ class Trader:
 
         return orders
 
+    def pairs_trading(self, product1: str, product2: str, threshold: float) -> tuple[Order, Order] | None:
+        """
+        Based on the residuals of the linear regression, return the orders to be placed.
+        Return a tuple (order_product_1, order_product_2) if the residuals are significant enough.
+        """
+        residuals = calculate_linear_regression(self.historical_prices[product1], self.historical_prices[product2])
+
+        if residuals is None:
+            return None
+
+        last_residual = residuals[-1]
+
+        if last_residual > threshold:
+            # Long product1 and short product2
+            long_order = Order(product1, self.fair_value[product1] - self.min_profit[product1], 20)
+            short_order = Order(product2, self.fair_value[product1] + self.min_profit[product2], 0)
+            return long_order, short_order
+        elif last_residual < -threshold:
+            # Short product1 and long product1
+            short_order = Order(product1, self.fair_value[product1] + self.min_profit[product1], -20)
+            long_order = Order(product2, self.fair_value[product2] - self.min_profit[product2], 0)
+            return short_order, long_order
+        else:
+            return None
+
+
     def run(self, state: TradingState) -> dict[str, list[Order]]:
         """
         Only method required. It takes all buy and sell orders for all symbols as an input,
@@ -179,7 +246,7 @@ class Trader:
             # Update the position for the current product
             self.pos[product] = state.position.get(product, 0)
             print(
-                f"{product.upper()}: Volume limit {self.pos_limit[product]}; position {self.pos[product]}"
+                f"{product}: Volume limit {self.pos_limit[product]}; position {self.pos[product]}"
             )
 
             # Get the top of book for the current product
@@ -195,47 +262,55 @@ class Trader:
             # Update the fair value for the current product
             self.update_fair_value(product)
 
-            if product == "PEARLS" or product == "BANANAS" or product == "COCONUTS" or product == "PINA_COLADAS":
+            if product == "PEARLS" or product == "BANANAS":
                 # We are going to iterate through the sorted lists of best asks and best bids and place orders
                 # accordingly, stopping when the price is no longer favorable.
 
-                # buy everything below our price
+                # buy everything below fair value
                 ask: int
                 vol: int
                 for ask, vol in best_asks:  # vol is < 0
-                    if ask < self.fair_value[product] - self.min_profit:
-                        # We can still buy stuff
+                    if ask < self.fair_value[product] - self.min_profit[product]:
+                        # then buy it, if we can
                         buy_volume = min(
                             -vol, self.pos_limit[product] - self.pos[product]
                         )
                         if buy_volume > 0:
                             self.pos[product] += buy_volume
-                            print(f"{product.upper()}: Buying at ${ask} x {buy_volume}")
+                            print(f"{product}: Buying at ${ask} x {buy_volume}")
                             orders.append(Order(product, ask, buy_volume))
                             if buy_volume == -vol:
                                 cleared_best_ask = True
-                # sell everything above our price
+
+                # sell everything above fair value
                 bid: int
                 vol: int
                 for bid, vol in best_bids:  # vol is > 0
-                    if bid > (self.fair_value[product] + self.min_profit):
-                        # We can still sell stuff
+                    if bid > self.fair_value[product] + self.min_profit[product]:
+                        # then sell it if we can
                         sellable_volume = max(
                             -vol, -self.pos_limit[product] - self.pos[product]
                         )
                         if sellable_volume < 0:
                             self.pos[product] += sellable_volume
-                            print(f"{product.upper()}: Selling at ${bid} x {sellable_volume}")
+                            print(f"{product}: Selling at ${bid} x {sellable_volume}")
                             orders.append(Order(product, bid, sellable_volume))
                             if sellable_volume == -vol:
                                 cleared_best_bid = True
 
-            if spread > SPREAD_TO_MM[product]:
-                # We have a spread, so we need to adjust the fair value by market making that spread
-                mm = self.market_make(best_bids, best_asks, product, cleared_best_ask, cleared_best_bid)
-                orders.extend(mm)
+                if spread > SPREAD_TO_MM[product]:
+                    # We have a spread, so we need to adjust the fair value by MarketMaking that spread
+                    mm = self.market_make(best_bids, best_asks, product, cleared_best_ask, cleared_best_bid)
+                    orders.extend(mm)
 
-            # Add all the above orders to the result dict
-            result[product] = orders
+                # Add all the above orders to the result dict
+                result[product] = orders
+
+            elif product == "COCONUTS":
+                pairs_trade = self.pairs_trading("COCONUTS", "PINA_COLADAS", threshold=10)
+                if pairs_trade is not None:
+                    coconut_order, pinada_order = pairs_trade
+                    result["COCONUTS"].append(coconut_order)
+                    result["PINA_COLADAS"].append(pinada_order)
 
         return result

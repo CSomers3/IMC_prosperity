@@ -5,7 +5,7 @@ import pandas as pd
 import time
 
 ## Import pnl estimation
-from local_playground_pnl_estimation import run_pnl_estimation
+from local_playground_pnl_estimation import run_pnl_estimation, ROUND
 
 
 if __name__ == "__main__":
@@ -13,15 +13,15 @@ if __name__ == "__main__":
 
     ## Open all csvs in the folder data and save them into a dictionary (filename = key, df = value)
     data: dict[str, pd.DataFrame] = {}
-    for file in os.listdir("Round_1/data"):
+    for file in os.listdir(f"Round_{ROUND}/data"):
         if file.endswith(".csv") and file.startswith("prices"):
-            data[file] = pd.read_csv("Round_1/data/" + file, sep=";")
+            data[file] = pd.read_csv(f"Round_{ROUND}/data/" + file, sep=";")
 
     ## Open trades_round to simulate the MM trades
     data_trades: dict[str, pd.DataFrame] = {}
-    for file in os.listdir("Round_1/data"):
+    for file in os.listdir(f"Round_{ROUND}/data"):
         if file.endswith(".csv") and file.startswith("trades_round"):
-            data_trades[file] = pd.read_csv("Round_1/data/" + file, sep=";")
+            data_trades[file] = pd.read_csv(f"Round_{ROUND}/data/" + file, sep=";")
 
     # Best parameters and associated PnL, shared across child processes
     manager = mp.Manager()

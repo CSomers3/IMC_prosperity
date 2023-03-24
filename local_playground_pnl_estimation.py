@@ -14,6 +14,7 @@ from datamodel import Order, TradingState, Symbol, OrderDepth
 
 
 SUPPRESS_PRINTS: bool = True
+ROUND = 1
 
 
 def run_pnl_estimation(
@@ -45,7 +46,7 @@ def run_pnl_estimation(
             print(f"DATA FOR DAY {day}")
             print("=====================================")
 
-        df_simulation: pd.DataFrame = data[f"prices_round_1_day_{day}.csv"]
+        df_simulation: pd.DataFrame = data[f"prices_round_{ROUND}_day_{day}.csv"]
 
         # ## Only take the first % of the rows of df_simulation
         # df_simulation = df_simulation[:int(len(df_simulation) * 0.02)]
@@ -216,13 +217,13 @@ def run_pnl_estimation(
                         if order.quantity != 0:
                             # The order did not go through, so we market make
                             if order.quantity > 0:
-                                # let's check in data_trades[f"trades_round_1_day_{day}"] if we find a
+                                # let's check in data_trades[f"trades_round_{ROUND}_day_{day}"] if we find a
                                 # trade with the right timestamp and the right product and the right
                                 # price (it's a buy order here, so we want to find trades that were made
                                 # at a lower price than the one we are) If we find one, we add the
                                 # quantity to our position and update the PnL
                                 trades = data_trades[
-                                    f"trades_round_1_day_{day}_nn.csv"
+                                    f"trades_round_{ROUND}_day_{day}_nn.csv"
                                 ]
                                 trades = trades[trades["symbol"] == product]
                                 trades = trades[
@@ -246,13 +247,13 @@ def run_pnl_estimation(
                                     )
                                     order.quantity -= -volume_traded
                             elif order.quantity < 0:
-                                # let's check in data_trades[f"trades_round_1_day_{day}"] if we find a
+                                # let's check in data_trades[f"trades_round_{ROUND}_day_{day}"] if we find a
                                 # trade with the right timestamp and the right product and the right
                                 # price (it's a sell order here, so we want to find trades that were
                                 # made at a higher price than the one we are) If we find one, we add the
                                 # quantity to our position and update the PnL
                                 trades = data_trades[
-                                    f"trades_round_1_day_{day}_nn.csv"
+                                    f"trades_round_{ROUND}_day_{day}_nn.csv"
                                 ]
                                 trades = trades[trades["symbol"] == product]
                                 trades = trades[
