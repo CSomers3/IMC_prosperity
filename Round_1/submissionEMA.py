@@ -209,12 +209,12 @@ class Trader:
 
         if last_residual > threshold:
             # Long product1 and short product2
-            long_order = Order(product1, self.fair_value[product1] - self.min_profit[product1], 20)
+            long_order = Order(product1, self.fair_value[product1] - self.min_profit[product1], 10)
             short_order = Order(product2, self.fair_value[product1] + self.min_profit[product2], 0)
             return long_order, short_order
         elif last_residual < -threshold:
             # Short product1 and long product1
-            short_order = Order(product1, self.fair_value[product1] + self.min_profit[product1], -20)
+            short_order = Order(product1, self.fair_value[product1] + self.min_profit[product1], -10)
             long_order = Order(product2, self.fair_value[product2] - self.min_profit[product2], 0)
             return short_order, long_order
         else:
