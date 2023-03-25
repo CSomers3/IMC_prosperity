@@ -228,13 +228,13 @@ class Trader:
 
         if average_residual > threshold:  # if residuals are >0, then product 2 is more expensive than anticipated by
             # product 1, long product1 and short product2
-            long_order = Order(product1, int(self.fair_value[product1] - MIN_PROFIT[product1]), -10)
-            short_order = Order(product2, math.ceil(self.fair_value[product2] + MIN_PROFIT[product2]), 10)
+            long_order = Order(product1, int(self.fair_value[product1] - MIN_PROFIT[product1]), max(-10, -self.pos_limit[product1] - self.pos[product1]))
+            short_order = Order(product2, math.ceil(self.fair_value[product2] + MIN_PROFIT[product2]), min(10, self.pos_limit[product2] - self.pos[product2]))
             return long_order, short_order
         elif average_residual < -threshold:  # if residuals are <0, then product 2 is cheaper than anticipated by
             # product 1 short product1 and long product1
-            short_order = Order(product1, math.ceil(self.fair_value[product1] + MIN_PROFIT[product1]), 10)
-            long_order = Order(product2, int(self.fair_value[product2] - MIN_PROFIT[product2]), -10)
+            short_order = Order(product1, math.ceil(self.fair_value[product1] + MIN_PROFIT[product1]), min(10, self.pos_limit[product1] - self.pos[product1]))
+            long_order = Order(product2, int(self.fair_value[product2] - MIN_PROFIT[product2]), max(-10, -self.pos_limit[product1] - self.pos[product1]))
             return short_order, long_order
         else:
             return None
@@ -349,15 +349,15 @@ class Trader:
                         print(f"Residuals: {residuals}>0, so shorting diving gear")
                         sellable_volume = max(-best_bids[0][1], -self.pos_limit[product] - self.pos[product])
                         short = Order("DIVING_GEAR",
-                                      math.ceil(self.fair_value[product] + MIN_PROFIT[product]),
+                                      math.ceil(best_bids[0][0] + MIN_PROFIT[product]),
                                       sellable_volume)
                         result["DIVING_GEAR"].append(short)
 
                     elif residuals < -5:
                         # diving gear cheaper than dolphin-derived-demand
                         print(f"Residuals: {residuals}<0, so long diving gear")
-                        buyable_volume = min(-best_asks[0][1], self.pos_limit[product] - self.pos[product])
-                        long = Order("DIVING_GEAR", int(self.fair_value[product] - MIN_PROFIT[product]),
+                        buyable_volume = min(best_asks[0][1], self.pos_limit[product] - self.pos[product])
+                        long = Order("DIVING_GEAR", int(best_asks[0][0] - MIN_PROFIT[product]),
                                      buyable_volume)
                         result["DIVING_GEAR"].append(long)
 
