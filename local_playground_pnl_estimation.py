@@ -20,6 +20,10 @@ ROUND = 3
 def run_pnl_estimation(
         bananas_best_average_profit,
         pearls_best_average_profit,
+        coconuts_best_average_profit,
+        pina_coladas_best_average_profit,
+        berries_best_average_profit,
+        diving_gear_best_average_profit,
         min_profit,
         min_spread,
         ema_short_period,
@@ -99,10 +103,11 @@ def run_pnl_estimation(
                     (df_simulation["product"] == product)
                     & (df_simulation["timestamp"] == timestamp)
                     ]
-                ### Commented out for speed
-                # assert (
-                #         len(row) == 1
-                # )  # We should have only one row in our dataframe
+                ## Comment out for speed
+                assert (
+                        len(row) == 1
+                )  # We should have only one row in our dataframe
+                ##
                 order_depth.buy_orders = {
                     int(row[f"bid_price_{i}"]): int(row[f"bid_volume_{i}"])
                     for i in range(1, 4)
@@ -123,7 +128,11 @@ def run_pnl_estimation(
                 position=old_trading_state.position,
                 observations={
                     'DOLPHIN_SIGHTINGS':
-                    df_simulation[df_simulation['timestamp'] == timestamp]['DOLPHIN_SIGHTINGS'].values[0]
+                    df_simulation[
+                        (df_simulation['timestamp'] == timestamp)
+                        &
+                        (df_simulation['product'] == 'DOLPHIN_SIGHTINGS')
+                    ]["mid_price"].values[0]
                 },
             )
             orders: dict[str, list[Order]]
@@ -280,11 +289,20 @@ def run_pnl_estimation(
                                     )
                                     order.quantity -= volume_traded
 
-            #### COMMENTED OUT FOR SPEED
-            # # Sanity check
-            # for product in products:
-            #     assert current_trading_state.position[product] <= 20
-            #     assert current_trading_state.position[product] >= -20
+            ## COMMENT OUT FOR SPEED
+            # Sanity check
+            pos_limit = {
+                "PEARLS": 20,
+                "BANANAS": 20,
+                "COCONUTS": 600,
+                "PINA_COLADAS": 300,
+                "BERRIES": 250,
+                "DIVING_GEAR": 50
+            }
+            for product in products:
+                assert current_trading_state.position[product] <= pos_limit[product]
+                assert current_trading_state.position[product] >= -pos_limit[product]
+            ##
 
             # Liquidate positions at the end of the timestamp to have an accurate estimation of PnL at
             # the end of the timestamp
@@ -366,3 +384,63 @@ def run_pnl_estimation(
             [all_profits[i]["PEARLS"] for i in range(len(all_profits))]
         ) / len(all_profits)
         print("NEW PEARLS HIGHSCORE", pearls_best_average_profit)
+
+    if coconuts_best_average_profit[1] < sum(
+            [all_profits[i]["COCONUTS"] for i in range(len(all_profits))]
+    ) / len(all_profits):
+        coconuts_best_average_profit[0] = (
+            f"MIN_PROFIT = {min_profit}, "
+            f"SPREAD_TO_MM = {min_spread}, "
+            f"PERCENT_PUT_WHEN_MM = {percent_put_when_mm}, "
+            f"EMA_SHORT_PERIOD = {ema_short_period}, "
+            f"EMA_LONG_PERIOD = {ema_long_period}"
+        )
+        coconuts_best_average_profit[1] = sum(
+            [all_profits[i]["COCONUTS"] for i in range(len(all_profits))]
+        ) / len(all_profits)
+        print("NEW COCONUTS HIGHSCORE", coconuts_best_average_profit)
+
+    if pina_coladas_best_average_profit[1] < sum(
+            [all_profits[i]["PINA_COLADAS"] for i in range(len(all_profits))]
+    ) / len(all_profits):
+        pina_coladas_best_average_profit[0] = (
+            f"MIN_PROFIT = {min_profit}, "
+            f"SPREAD_TO_MM = {min_spread}, "
+            f"PERCENT_PUT_WHEN_MM = {percent_put_when_mm}, "
+            f"EMA_SHORT_PERIOD = {ema_short_period}, "
+            f"EMA_LONG_PERIOD = {ema_long_period}"
+        )
+        pina_coladas_best_average_profit[1] = sum(
+            [all_profits[i]["PINA_COLADAS"] for i in range(len(all_profits))]
+        ) / len(all_profits)
+        print("NEW PINA COLADAS HIGHSCORE", pina_coladas_best_average_profit)
+
+    if berries_best_average_profit[1] < sum(
+            [all_profits[i]["BERRIES"] for i in range(len(all_profits))]
+    ) / len(all_profits):
+        berries_best_average_profit[0] = (
+            f"MIN_PROFIT = {min_profit}, "
+            f"SPREAD_TO_MM = {min_spread}, "
+            f"PERCENT_PUT_WHEN_MM = {percent_put_when_mm}, "
+            f"EMA_SHORT_PERIOD = {ema_short_period}, "
+            f"EMA_LONG_PERIOD = {ema_long_period}"
+        )
+        berries_best_average_profit[1] = sum(
+            [all_profits[i]["BERRIES"] for i in range(len(all_profits))]
+        ) / len(all_profits)
+        print("NEW BERRIES HIGHSCORE", berries_best_average_profit)
+
+    if diving_gear_best_average_profit[1] < sum(
+            [all_profits[i]["DIVING_GEAR"] for i in range(len(all_profits))]
+    ) / len(all_profits):
+        diving_gear_best_average_profit[0] = (
+            f"MIN_PROFIT = {min_profit}, "
+            f"SPREAD_TO_MM = {min_spread}, "
+            f"PERCENT_PUT_WHEN_MM = {percent_put_when_mm}, "
+            f"EMA_SHORT_PERIOD = {ema_short_period}, "
+            f"EMA_LONG_PERIOD = {ema_long_period}"
+        )
+        diving_gear_best_average_profit[1] = sum(
+            [all_profits[i]["DIVING_GEAR"] for i in range(len(all_profits))]
+        ) / len(all_profits)
+        print("NEW DIVING GEAR HIGHSCORE", diving_gear_best_average_profit)

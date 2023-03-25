@@ -344,7 +344,7 @@ class Trader:
                 )
 
                 if residuals is not None:
-                    if residuals > 0:
+                    if residuals > 5:
                         # diving gear more expensive than dolphin-derived-demand
                         print(f"Residuals: {residuals}>0, so shorting diving gear")
                         sellable_volume = max(-best_bids[0][1], -self.pos_limit[product] - self.pos[product])
@@ -353,7 +353,7 @@ class Trader:
                                       sellable_volume)
                         result["DIVING_GEAR"].append(short)
 
-                    elif residuals < 0:
+                    elif residuals < -5:
                         # diving gear cheaper than dolphin-derived-demand
                         print(f"Residuals: {residuals}<0, so long diving gear")
                         buyable_volume = min(-best_asks[0][1], self.pos_limit[product] - self.pos[product])

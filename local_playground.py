@@ -27,6 +27,10 @@ if __name__ == "__main__":
     manager = mp.Manager()
     bananas_best_average_profit: list[str | float] = manager.list(["Test", 0])
     pearls_best_average_profit: list[str | float] = manager.list(["Test", 0])
+    coconuts_best_average_profit: list[str | float] = manager.list(["Test", 0])
+    pina_coladas_best_average_profit: list[str | float] = manager.list(["Test", 0])
+    berries_best_average_profit: list[str | float] = manager.list(["Test", 0])
+    diving_gear_best_average_profit: list[str | float] = manager.list(["Test", 0])
     processes = []
 
     list_min_profit: list[int] = [
@@ -77,6 +81,10 @@ if __name__ == "__main__":
                                 args=(
                                     bananas_best_average_profit,
                                     pearls_best_average_profit,
+                                    coconuts_best_average_profit,
+                                    pina_coladas_best_average_profit,
+                                    berries_best_average_profit,
+                                    diving_gear_best_average_profit,
                                     min_profit,
                                     min_spread,
                                     ema_short_period,
