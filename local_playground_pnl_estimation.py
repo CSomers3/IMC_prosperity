@@ -13,8 +13,8 @@ from local_playground_suppress_print_context_manager import suppress_output
 from datamodel import Order, TradingState, Symbol, OrderDepth
 
 
-SUPPRESS_PRINTS: bool = True
-ROUND = 1
+SUPPRESS_PRINTS: bool = False
+ROUND = 3
 
 
 def run_pnl_estimation(
@@ -28,20 +28,20 @@ def run_pnl_estimation(
         data,
         data_trades,
 ):
-    for product in "BANANAS", "PEARLS":
-        Algo.MIN_PROFIT[product] = min_profit
-        Algo.SPREAD_TO_MM[product] = min_spread
-        Algo.EMA_SHORT_PERIOD[product] = ema_short_period
-        Algo.EMA_LONG_PERIOD[product] = ema_long_period
-        Algo.PERCENT_PUT_WHEN_MM[product] = percent_put_when_mm
+    # for product in "BANANAS", "PEARLS":
+    #     Algo.MIN_PROFIT[product] = min_profit
+    #     Algo.SPREAD_TO_MM[product] = min_spread
+    #     Algo.EMA_SHORT_PERIOD[product] = ema_short_period
+    #     Algo.EMA_LONG_PERIOD[product] = ema_long_period
+    #     Algo.PERCENT_PUT_WHEN_MM[product] = percent_put_when_mm
 
     ## Loop through the historic days
     all_profits: list[dict[str, float]] = []
     day: str
     for day in [
-        "-2",
-        "-1",
-        "0"
+        "0",
+        "1",
+        "2",
     ]:
         with suppress_output(SUPPRESS_PRINTS):
             print("=====================================")
@@ -59,10 +59,7 @@ def run_pnl_estimation(
         # Print hyperparameters
         with suppress_output(SUPPRESS_PRINTS):
             print("MIN_PROFIT:", Algo.MIN_PROFIT)
-            print(
-                "FAIR_VALUE_SHIFT_AT_CROSSOVER:",
-                Algo.FAIR_VALUE_SHIFT_AT_CROSSOVER,
-            )
+            print("FAIR_VALUE_SHIFT_AT_CROSSOVER:", Algo.FAIR_VALUE_SHIFT_AT_CROSSOVER)
             print("SPREAD_TO_MM:", Algo.SPREAD_TO_MM)
             print("PERCENT_PUT_WHEN_MM:", Algo.PERCENT_PUT_WHEN_MM)
             print("EMA_SHORT_PERIOD:", Algo.EMA_SHORT_PERIOD)
@@ -72,6 +69,9 @@ def run_pnl_estimation(
         products = list(df_simulation["product"].unique())
         with suppress_output(SUPPRESS_PRINTS):
             print("PRODUCTS TESTED IN THE PLAYGROUND:", products)
+
+        ## Drop dolphins
+        products.remove("DOLPHIN_SIGHTINGS")
 
         pnl_estimator = PnLEstimator.ProfitsAndLossesEstimator(products)
 
@@ -121,7 +121,10 @@ def run_pnl_estimation(
                 own_trades={},  # is not used anyway
                 market_trades={},  # is not used anyway
                 position=old_trading_state.position,
-                observations={},  # is not used anyway
+                observations={
+                    'DOLPHIN_SIGHTINGS':
+                    df_simulation[df_simulation['timestamp'] == timestamp]['DOLPHIN_SIGHTINGS'].values[0]
+                },
             )
             orders: dict[str, list[Order]]
             with suppress_output(SUPPRESS_PRINTS):
@@ -338,6 +341,7 @@ def run_pnl_estimation(
             [all_profits[i]["BANANAS"] for i in range(len(all_profits))]
     ) / len(all_profits):
         bananas_best_average_profit[0] = (
+            f"MIN_PROFIT = {min_profit}, "
             f"SPREAD_TO_MM = {min_spread}, "
             f"PERCENT_PUT_WHEN_MM = {percent_put_when_mm}, "
             f"EMA_SHORT_PERIOD = {ema_short_period}, "
@@ -352,6 +356,7 @@ def run_pnl_estimation(
             [all_profits[i]["PEARLS"] for i in range(len(all_profits))]
     ) / len(all_profits):
         pearls_best_average_profit[0] = (
+            f"MIN_PROFIT = {min_profit}, "
             f"SPREAD_TO_MM = {min_spread}, "
             f"PERCENT_PUT_WHEN_MM = {percent_put_when_mm}, "
             f"EMA_SHORT_PERIOD = {ema_short_period}, "

@@ -23,7 +23,7 @@ if __name__ == "__main__":
         if file.endswith(".csv") and file.startswith("trades_round"):
             data_trades[file] = pd.read_csv(f"Round_{ROUND}/data/" + file, sep=";")
 
-    # Best parameters and associated PnL, shared across child processes
+    ## Best parameters and associated PnL, shared across child processes
     manager = mp.Manager()
     bananas_best_average_profit: list[str | float] = manager.list(["Test", 0])
     pearls_best_average_profit: list[str | float] = manager.list(["Test", 0])
@@ -31,40 +31,40 @@ if __name__ == "__main__":
 
     list_min_profit: list[int] = [
         0,
-        1,
-        2,
-        5
+        # 1,
+        # 2,
+        # 5
     ]
     list_min_spread: list[int] = [
         3,
-        4,
-        5,
-        6
+        # 4,
+        # 5,
+        # 6
     ]
     list_of_potential_percent_put_when_mm: list[int] = [
         0,
-        5,
-        10,
-        15,
-        18,
-        20
+        # 5,
+        # 10,
+        # 15,
+        # 18,
+        # 20
     ]
     list_of_potential_ema_short_period: list[int] = [
         5,
-        8,
-        10,
-        12,
-        15,
-        30,
+        # 8,
+        # 10,
+        # 12,
+        # 15,
+        # 30,
     ]
     list_of_potential_ema_long_period: list[int] = [
         12,
-        15,
-        20,
-        30,
-        50,
-        100,
-        1000,
+        # 15,
+        # 20,
+        # 30,
+        # 50,
+        # 100,
+        # 1000,
     ]
     for min_profit in list_min_profit:
         for min_spread in list_min_spread:

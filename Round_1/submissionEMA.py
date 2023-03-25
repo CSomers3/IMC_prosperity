@@ -139,7 +139,8 @@ class Trader:
             "COCONUTS",
             "PINA_COLADAS",
             "BERRIES",
-            "DIVING_GEAR"
+            "DIVING_GEAR",
+            "DOLPHINS",
         ]
         self.pos_limit = {
             "PEARLS": 20,
@@ -217,21 +218,21 @@ class Trader:
         Based on the residuals of the linear regression, return the orders to be placed.
         Return a tuple (order_product_1, order_product_2) if the residuals are significant enough.
         """
-        residuals: float = calculate_linear_regression(
+        average_residual: float = calculate_linear_regression(
             self.historical_prices[product1],
             self.historical_prices[product2]
         )  # averaged over past values, cf calculate_linear_regression
 
-        if residuals is None:
+        if average_residual is None:
             return None
 
-        if residuals > threshold:  # if residuals are >0, then product 2 is more expensive than anticipated by product 1
-            # Long product1 and short product2
+        if average_residual > threshold:  # if residuals are >0, then product 2 is more expensive than anticipated by
+            # product 1, long product1 and short product2
             long_order = Order(product1, int(self.fair_value[product1] - MIN_PROFIT[product1]), -10)
             short_order = Order(product2, math.ceil(self.fair_value[product2] + MIN_PROFIT[product2]), 10)
             return long_order, short_order
-        elif residuals < -threshold:  # if residuals are <0, then product 2 is cheaper than anticipated by product 1
-            # Short product1 and long product1
+        elif average_residual < -threshold:  # if residuals are <0, then product 2 is cheaper than anticipated by
+            # product 1 short product1 and long product1
             short_order = Order(product1, math.ceil(self.fair_value[product1] + MIN_PROFIT[product1]), 10)
             long_order = Order(product2, int(self.fair_value[product2] - MIN_PROFIT[product2]), -10)
             return short_order, long_order
@@ -330,5 +331,34 @@ class Trader:
                     coconut_order, pinada_order = pairs_trade
                     result["COCONUTS"].append(coconut_order)
                     result["PINA_COLADAS"].append(pinada_order)
+
+            elif product == "DIVING_GEAR":
+                # Update Dolphin observations (price)
+                dolphin_price = state.observations['DOLPHIN_SIGHTINGS']
+                print(f"DOLPHINS: {dolphin_price}")
+                self.historical_prices["DOLPHINS"].append(dolphin_price)
+
+                residuals: float = calculate_linear_regression(
+                    self.historical_prices["DOLPHINS"],
+                    self.historical_prices["DIVING_GEAR"]
+                )
+
+                if residuals is not None:
+                    if residuals > 0:
+                        # diving gear more expensive than dolphin-derived-demand
+                        print(f"Residuals: {residuals}>0, so shorting diving gear")
+                        sellable_volume = max(-best_bids[0][1], -self.pos_limit[product] - self.pos[product])
+                        short = Order("DIVING_GEAR",
+                                      math.ceil(self.fair_value[product] + MIN_PROFIT[product]),
+                                      sellable_volume)
+                        result["DIVING_GEAR"].append(short)
+
+                    elif residuals < 0:
+                        # diving gear cheaper than dolphin-derived-demand
+                        print(f"Residuals: {residuals}<0, so long diving gear")
+                        buyable_volume = min(-best_asks[0][1], self.pos_limit[product] - self.pos[product])
+                        long = Order("DIVING_GEAR", int(self.fair_value[product] - MIN_PROFIT[product]),
+                                     buyable_volume)
+                        result["DIVING_GEAR"].append(long)
 
         return result
