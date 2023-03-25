@@ -13,7 +13,7 @@ from local_playground_suppress_print_context_manager import suppress_output
 from datamodel import Order, TradingState, Symbol, OrderDepth
 
 
-SUPPRESS_PRINTS: bool = False
+SUPPRESS_PRINTS: bool = True
 ROUND = 3
 
 
@@ -43,8 +43,8 @@ def run_pnl_estimation(
     all_profits: list[dict[str, float]] = []
     day: str
     for day in [
-        "0",
-        "1",
+        # "0",
+        # "1",
         "2",
     ]:
         with suppress_output(SUPPRESS_PRINTS):
@@ -135,6 +135,7 @@ def run_pnl_estimation(
                     ]["mid_price"].values[0]
                 },
             )
+
             orders: dict[str, list[Order]]
             with suppress_output(SUPPRESS_PRINTS):
                 orders = trader.run(
@@ -203,7 +204,7 @@ def run_pnl_estimation(
                                             pnl_estimator.update(
                                                 order, partial=-vol
                                             )
-                                            order.quantity -= vol
+                                            order.quantity += vol
                                             best_bids[idx] = (
                                                 ask,
                                                 best_bids[idx][1] - vol,
@@ -300,8 +301,11 @@ def run_pnl_estimation(
                 "DIVING_GEAR": 50
             }
             for product in products:
-                assert current_trading_state.position[product] <= pos_limit[product]
-                assert current_trading_state.position[product] >= -pos_limit[product]
+                try:
+                    assert current_trading_state.position[product] <= pos_limit[product]
+                    assert current_trading_state.position[product] >= -pos_limit[product]
+                except AssertionError:
+                    breakpoint()
             ##
 
             # Liquidate positions at the end of the timestamp to have an accurate estimation of PnL at
@@ -355,92 +359,22 @@ def run_pnl_estimation(
             )
             print("")
 
-    if bananas_best_average_profit[1] < sum(
-            [all_profits[i]["BANANAS"] for i in range(len(all_profits))]
-    ) / len(all_profits):
-        bananas_best_average_profit[0] = (
-            f"MIN_PROFIT = {min_profit}, "
-            f"SPREAD_TO_MM = {min_spread}, "
-            f"PERCENT_PUT_WHEN_MM = {percent_put_when_mm}, "
-            f"EMA_SHORT_PERIOD = {ema_short_period}, "
-            f"EMA_LONG_PERIOD = {ema_long_period}"
-        )
-        bananas_best_average_profit[1] = sum(
-            [all_profits[i]["BANANAS"] for i in range(len(all_profits))]
-        ) / len(all_profits)
-        print("NEW BANANAS HIGHSCORE", bananas_best_average_profit)
-
-    if pearls_best_average_profit[1] < sum(
-            [all_profits[i]["PEARLS"] for i in range(len(all_profits))]
-    ) / len(all_profits):
-        pearls_best_average_profit[0] = (
-            f"MIN_PROFIT = {min_profit}, "
-            f"SPREAD_TO_MM = {min_spread}, "
-            f"PERCENT_PUT_WHEN_MM = {percent_put_when_mm}, "
-            f"EMA_SHORT_PERIOD = {ema_short_period}, "
-            f"EMA_LONG_PERIOD = {ema_long_period}"
-        )
-        pearls_best_average_profit[1] = sum(
-            [all_profits[i]["PEARLS"] for i in range(len(all_profits))]
-        ) / len(all_profits)
-        print("NEW PEARLS HIGHSCORE", pearls_best_average_profit)
-
-    if coconuts_best_average_profit[1] < sum(
-            [all_profits[i]["COCONUTS"] for i in range(len(all_profits))]
-    ) / len(all_profits):
-        coconuts_best_average_profit[0] = (
-            f"MIN_PROFIT = {min_profit}, "
-            f"SPREAD_TO_MM = {min_spread}, "
-            f"PERCENT_PUT_WHEN_MM = {percent_put_when_mm}, "
-            f"EMA_SHORT_PERIOD = {ema_short_period}, "
-            f"EMA_LONG_PERIOD = {ema_long_period}"
-        )
-        coconuts_best_average_profit[1] = sum(
-            [all_profits[i]["COCONUTS"] for i in range(len(all_profits))]
-        ) / len(all_profits)
-        print("NEW COCONUTS HIGHSCORE", coconuts_best_average_profit)
-
-    if pina_coladas_best_average_profit[1] < sum(
-            [all_profits[i]["PINA_COLADAS"] for i in range(len(all_profits))]
-    ) / len(all_profits):
-        pina_coladas_best_average_profit[0] = (
-            f"MIN_PROFIT = {min_profit}, "
-            f"SPREAD_TO_MM = {min_spread}, "
-            f"PERCENT_PUT_WHEN_MM = {percent_put_when_mm}, "
-            f"EMA_SHORT_PERIOD = {ema_short_period}, "
-            f"EMA_LONG_PERIOD = {ema_long_period}"
-        )
-        pina_coladas_best_average_profit[1] = sum(
-            [all_profits[i]["PINA_COLADAS"] for i in range(len(all_profits))]
-        ) / len(all_profits)
-        print("NEW PINA COLADAS HIGHSCORE", pina_coladas_best_average_profit)
-
-    if berries_best_average_profit[1] < sum(
-            [all_profits[i]["BERRIES"] for i in range(len(all_profits))]
-    ) / len(all_profits):
-        berries_best_average_profit[0] = (
-            f"MIN_PROFIT = {min_profit}, "
-            f"SPREAD_TO_MM = {min_spread}, "
-            f"PERCENT_PUT_WHEN_MM = {percent_put_when_mm}, "
-            f"EMA_SHORT_PERIOD = {ema_short_period}, "
-            f"EMA_LONG_PERIOD = {ema_long_period}"
-        )
-        berries_best_average_profit[1] = sum(
-            [all_profits[i]["BERRIES"] for i in range(len(all_profits))]
-        ) / len(all_profits)
-        print("NEW BERRIES HIGHSCORE", berries_best_average_profit)
-
-    if diving_gear_best_average_profit[1] < sum(
-            [all_profits[i]["DIVING_GEAR"] for i in range(len(all_profits))]
-    ) / len(all_profits):
-        diving_gear_best_average_profit[0] = (
-            f"MIN_PROFIT = {min_profit}, "
-            f"SPREAD_TO_MM = {min_spread}, "
-            f"PERCENT_PUT_WHEN_MM = {percent_put_when_mm}, "
-            f"EMA_SHORT_PERIOD = {ema_short_period}, "
-            f"EMA_LONG_PERIOD = {ema_long_period}"
-        )
-        diving_gear_best_average_profit[1] = sum(
-            [all_profits[i]["DIVING_GEAR"] for i in range(len(all_profits))]
-        ) / len(all_profits)
-        print("NEW DIVING GEAR HIGHSCORE", diving_gear_best_average_profit)
+    best_average_profits = {
+        "BANANAS": bananas_best_average_profit,
+        "PEARLS": pearls_best_average_profit,
+        "COCONUTS": coconuts_best_average_profit,
+        "PINA_COLADAS": pina_coladas_best_average_profit,
+        "BERRIES": berries_best_average_profit,
+        "DIVING_GEAR": diving_gear_best_average_profit,
+    }
+    for item, best_average_profit in best_average_profits.items():
+        if best_average_profit[1] < sum(all_profits[i][item] for i in range(len(all_profits))) / len(all_profits):
+            best_average_profit[0] = (
+                f"MIN_PROFIT = {min_profit}, "
+                f"SPREAD_TO_MM = {min_spread}, "
+                f"PERCENT_PUT_WHEN_MM = {percent_put_when_mm}, "
+                f"EMA_SHORT_PERIOD = {ema_short_period}, "
+                f"EMA_LONG_PERIOD = {ema_long_period}"
+            )
+            best_average_profit[1] = sum(all_profits[i][item] for i in range(len(all_profits))) / len(all_profits)
+            print(f"NEW {item} HIGHSCORE", best_average_profit)

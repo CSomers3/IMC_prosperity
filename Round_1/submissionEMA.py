@@ -121,8 +121,9 @@ def calculate_linear_regression(x, y):
     intercept = y_mean - slope * x_mean
 
     residuals = []
-    for i in range(1, min(11, len(x), len(y))+1):  # x and y might have different lengths since one is updated before
+    for i in range(1, min(11, len(x), len(y))+1):  # x and y might have different lengths since one* is updated before
         # the other one, and this function is called between the two
+        # * historical prices
         y_pred = slope * x[-i] + intercept
         residuals.append(y[-i] - y_pred)
 
@@ -168,14 +169,14 @@ class Trader:
 
         self.fair_value[product] = (short_ema + long_ema) / 2
 
-        if short_ema > long_ema:
-            # Short EMA is above long EMA, so we are in a bullish trend, so we set the fair value a bit higher than the
-            # fair_value because we want to buy
-            self.fair_value[product] += FAIR_VALUE_SHIFT_AT_CROSSOVER[product]
-        else:
-            # Short EMA is below long EMA, so we are in a bearish trend, so we set the fair value a bit lower than the
-            # fair_value because we want to sell
-            self.fair_value[product] -= FAIR_VALUE_SHIFT_AT_CROSSOVER[product]
+        # if short_ema > long_ema:
+        #     # Short EMA is above long EMA, so we are in a bullish trend, so we set the fair value a bit higher than
+        #     # the fair_value because we want to buy
+        #     self.fair_value[product] += FAIR_VALUE_SHIFT_AT_CROSSOVER[product]
+        # else:
+        #     # Short EMA is below long EMA, so we are in a bearish trend, so we set the fair value a bit lower than
+        #     # the fair_value because we want to sell
+        #     self.fair_value[product] -= FAIR_VALUE_SHIFT_AT_CROSSOVER[product]
 
     def market_make(
             self,
@@ -205,8 +206,6 @@ class Trader:
                 ask = asks[0][0]
         else:
             ask = asks[0][0] - 1
-
-        print(f"MAKING MARKET FOR {product} WITH BID {bid} AND ASK {ask}")
 
         orders = [Order(product, bid, bid_size), Order(product, ask, ask_size)]
 
@@ -266,8 +265,26 @@ class Trader:
         # Initialize the method output dict as an empty dict
         result: dict[str, list[Order]] = {product: [] for product in state.order_depths.keys()}
 
-        # Iterate over all the available products
+        # Iterate over all the available products to update all the positions
         product: str
+        for product in state.order_depths.keys():
+            # Update the position for the current product
+            self.pos[product] = state.position.get(product, 0)
+            print(
+                f"{product}: Volume limit {self.pos_limit[product]}; position {self.pos[product]}"
+            )
+
+        # Update pos_lim according to timestamp
+        if state.timestamp < 554767:
+            self.pos_limit["BERRIES"] = math.ceil(5 + ((250-5)/554767-0)*state.timestamp)
+        else:
+            self.pos_limit["BERRIES"] = math.ceil(250 + (5-250)/(1_000_000-554767)*state.timestamp)
+
+        self.pos_limit["BANANAS"] = math.ceil(20 + (15-20)/(1_000_000-0)*state.timestamp)
+
+        print(f"Timestamp: {state.timestamp}, pos_limit: {self.pos_limit}")
+
+        # Iterate over all the available products to place the orders
         for product in state.order_depths.keys():
             # Initialize the list of Orders to be sent as an empty list
             orders: list[Order] = []
@@ -275,12 +292,6 @@ class Trader:
             # Track if we cleared the best bid or ask
             cleared_best_bid: bool = False
             cleared_best_ask: bool = False
-
-            # Update the position for the current product
-            self.pos[product] = state.position.get(product, 0)
-            print(
-                f"{product}: Volume limit {self.pos_limit[product]}; position {self.pos[product]}"
-            )
 
             # Get the top of book for the current product
             order_depth: OrderDepth = state.order_depths[product]
@@ -358,10 +369,10 @@ class Trader:
                 )
 
                 if residuals is not None:
-                    if residuals > 5:
+                    if residuals > 100:
                         # diving gear more expensive than dolphin-derived-demand
-                        print(f"Residuals: {residuals}>0, so shorting DIVING_GEAR")
-                        sellable_volume = max(-best_bids[0][1], -self.pos_limit[product] - self.pos[product])
+                        sellable_volume = max(-10, -self.pos_limit[product] - self.pos[product])
+                        print(f"Residuals: {residuals}>0, so shorting DIVING_GEAR (volume = {sellable_volume})")
                         short = Order(
                             "DIVING_GEAR",
                             math.ceil(self.fair_value[product] + MIN_PROFIT[product]),
@@ -369,10 +380,10 @@ class Trader:
                         )
                         result["DIVING_GEAR"].append(short)
 
-                    elif residuals < -5:
+                    elif residuals < -100:
                         # diving gear cheaper than dolphin-derived-demand
-                        print(f"Residuals: {residuals}<0, so long DIVING_GEAR")
-                        buyable_volume = min(-best_asks[0][1], self.pos_limit[product] - self.pos[product])
+                        buyable_volume = min(10, self.pos_limit[product] - self.pos[product])
+                        print(f"Residuals: {residuals}<0, so long DIVING_GEAR (volume = {buyable_volume})")
                         long = Order(
                             "DIVING_GEAR",
                             int(self.fair_value[product] - MIN_PROFIT[product]),

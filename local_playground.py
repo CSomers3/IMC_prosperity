@@ -25,12 +25,12 @@ if __name__ == "__main__":
 
     ## Best parameters and associated PnL, shared across child processes
     manager = mp.Manager()
-    bananas_best_average_profit: list[str | float] = manager.list(["Test", 0])
-    pearls_best_average_profit: list[str | float] = manager.list(["Test", 0])
-    coconuts_best_average_profit: list[str | float] = manager.list(["Test", 0])
-    pina_coladas_best_average_profit: list[str | float] = manager.list(["Test", 0])
-    berries_best_average_profit: list[str | float] = manager.list(["Test", 0])
-    diving_gear_best_average_profit: list[str | float] = manager.list(["Test", 0])
+    bananas_best_average_profit: list[str | float] = manager.list(["Test", -500000])
+    pearls_best_average_profit: list[str | float] = manager.list(["Test", -500000])
+    coconuts_best_average_profit: list[str | float] = manager.list(["Test", -500000])
+    pina_coladas_best_average_profit: list[str | float] = manager.list(["Test", -500000])
+    berries_best_average_profit: list[str | float] = manager.list(["Test", -500000])
+    diving_gear_best_average_profit: list[str | float] = manager.list(["Test", -500000])
     processes = []
 
     list_min_profit: list[int] = [
@@ -117,5 +117,17 @@ if __name__ == "__main__":
     print("========================================")
     print("PEARLS BEST AVERAGE PROFIT:", pearls_best_average_profit[1])
     print("PARAMS:", pearls_best_average_profit[0])
+    print("========================================")
+    print("COCONUTS BEST AVERAGE PROFIT:", coconuts_best_average_profit[1])
+    print("PARAMS:", coconuts_best_average_profit[0])
+    print("========================================")
+    print("PINA COLADAS BEST AVERAGE PROFIT:", pina_coladas_best_average_profit[1])
+    print("PARAMS:", pina_coladas_best_average_profit[0])
+    print("========================================")
+    print("BERRIES BEST AVERAGE PROFIT:", berries_best_average_profit[1])
+    print("PARAMS:", berries_best_average_profit[0])
+    print("========================================")
+    print("DIVING GEAR BEST AVERAGE PROFIT:", diving_gear_best_average_profit[1])
+    print("PARAMS:", diving_gear_best_average_profit[0])
 
     print("Total time: ", time.time() - start_time, "s")
