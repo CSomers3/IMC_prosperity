@@ -121,10 +121,10 @@ def calculate_linear_regression(x, y):
     intercept = y_mean - slope * x_mean
 
     residuals = []
-    for i in range(min(10, len(x), len(y))):  # x and y might have different lengths since one is updated before the
-        # other one, and this function is called between the two
-        y_pred = slope * x[i] + intercept
-        residuals.append(y[i] - y_pred)
+    for i in range(1, min(11, len(x), len(y))+1):  # x and y might have different lengths since one is updated before
+        # the other one, and this function is called between the two
+        y_pred = slope * x[-i] + intercept
+        residuals.append(y[-i] - y_pred)
 
     return sum(residuals)/len(residuals)  # if residuals are >0, then y_i is bigger than anticipated
 
@@ -228,14 +228,28 @@ class Trader:
 
         if average_residual > threshold:  # if residuals are >0, then product 2 is more expensive than anticipated by
             # product 1, long product1 and short product2
-            long_order = Order(product1, int(self.fair_value[product1] - MIN_PROFIT[product1]), -10)
-            short_order = Order(product2, math.ceil(self.fair_value[product2] + MIN_PROFIT[product2]), 10)
-            return long_order, short_order
+            if (
+                    self.pos[product1] + 10 > self.pos_limit[product1]
+                    or
+                    self.pos[product2] - 10 < -self.pos_limit[product2]
+            ):
+                return None
+            else:
+                long_order = Order(product1, int(self.fair_value[product1] - MIN_PROFIT[product1]), 10)
+                short_order = Order(product2, math.ceil(self.fair_value[product2] + MIN_PROFIT[product2]), -10)
+                return long_order, short_order
         elif average_residual < -threshold:  # if residuals are <0, then product 2 is cheaper than anticipated by
             # product 1 short product1 and long product1
-            short_order = Order(product1, math.ceil(self.fair_value[product1] + MIN_PROFIT[product1]), 10)
-            long_order = Order(product2, int(self.fair_value[product2] - MIN_PROFIT[product2]), -10)
-            return short_order, long_order
+            if (
+                    self.pos[product1] - 10 < -self.pos_limit[product1]
+                    or
+                    self.pos[product2] + 10 > self.pos_limit[product2]
+            ):
+                return None
+            else:
+                short_order = Order(product1, math.ceil(self.fair_value[product1] + MIN_PROFIT[product1]), -10)
+                long_order = Order(product2, int(self.fair_value[product2] - MIN_PROFIT[product2]), 10)
+                return short_order, long_order
         else:
             return None
 
@@ -346,19 +360,24 @@ class Trader:
                 if residuals is not None:
                     if residuals > 5:
                         # diving gear more expensive than dolphin-derived-demand
-                        print(f"Residuals: {residuals}>0, so shorting diving gear")
+                        print(f"Residuals: {residuals}>0, so shorting DIVING_GEAR")
                         sellable_volume = max(-best_bids[0][1], -self.pos_limit[product] - self.pos[product])
-                        short = Order("DIVING_GEAR",
-                                      math.ceil(self.fair_value[product] + MIN_PROFIT[product]),
-                                      sellable_volume)
+                        short = Order(
+                            "DIVING_GEAR",
+                            math.ceil(self.fair_value[product] + MIN_PROFIT[product]),
+                            sellable_volume
+                        )
                         result["DIVING_GEAR"].append(short)
 
                     elif residuals < -5:
                         # diving gear cheaper than dolphin-derived-demand
-                        print(f"Residuals: {residuals}<0, so long diving gear")
+                        print(f"Residuals: {residuals}<0, so long DIVING_GEAR")
                         buyable_volume = min(-best_asks[0][1], self.pos_limit[product] - self.pos[product])
-                        long = Order("DIVING_GEAR", int(self.fair_value[product] - MIN_PROFIT[product]),
-                                     buyable_volume)
+                        long = Order(
+                            "DIVING_GEAR",
+                            int(self.fair_value[product] - MIN_PROFIT[product]),
+                            buyable_volume
+                        )
                         result["DIVING_GEAR"].append(long)
 
         return result
