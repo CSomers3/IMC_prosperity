@@ -41,8 +41,8 @@ if __name__ == "__main__":
     ]
     list_min_spread: list[int] = [
         3,
-        # 4,
-        # 5,
+        4,
+        5,
         # 6
     ]
     list_of_potential_ema_short_period: list[int] = [

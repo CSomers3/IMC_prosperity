@@ -31,11 +31,11 @@ def run_pnl_estimation(
         data,
         data_trades,
 ):
-    # for product in "BANANAS", "PEARLS":
-    #     Algo.MIN_PROFIT[product] = min_profit
-    #     Algo.SPREAD_TO_MM[product] = min_spread
-    #     Algo.EMA_SHORT_PERIOD[product] = ema_short_period
-    #     Algo.EMA_LONG_PERIOD[product] = ema_long_period
+    for product in "BANANAS", "PEARLS":
+        Algo.MIN_PROFIT[product] = min_profit
+        Algo.SPREAD_TO_MM[product] = min_spread
+        Algo.EMA_SHORT_PERIOD[product] = ema_short_period
+        Algo.EMA_LONG_PERIOD[product] = ema_long_period
 
     ## Loop through the historic days
     all_profits: list[dict[str, float]] = []
