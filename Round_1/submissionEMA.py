@@ -126,9 +126,7 @@ def calculate_linear_regression(x, y):
     intercept = y_mean - slope * x_mean
 
     residuals = []
-    for i in range(1, min(11, len(x), len(y))+1):  # x and y might have different lengths since one* is updated before
-        # the other one, and this function is called between the two
-        # * historical prices
+    for i in range(1, min(11, len(x))+1):
         y_pred = slope * x[-i] + intercept
         residuals.append(y[-i] - y_pred)
 
@@ -283,6 +281,9 @@ class Trader:
         # Initialize the method output dict as an empty dict
         result: dict[str, list[Order]] = {product: [] for product in state.order_depths.keys()}
 
+        # Initialize first_time_coco_pina
+        first_time_coco_pina = True
+
         # Iterate over all the available products to update all the positions
         product: str
         for product in state.order_depths.keys():
@@ -322,8 +323,10 @@ class Trader:
             last_price = (best_bids[0][0] + best_asks[0][0]) / 2
             self.historical_prices[product].append(last_price)
 
-            # Update the fair value for the current product
-            self.update_fair_value(product)
+            # Update the fair value for the current product, but only for the products we need to have access to the
+            # fair value, otherwise we compute stuff for nothing
+            if product in ["PEARLS", "BANANAS", "BERRIES", "COCONUTS", "PINA_COLADAS"]:
+                self.update_fair_value(product)
 
             if product in ["PEARLS", "BANANAS", "BERRIES"]:
                 # We are going to iterate through the sorted lists of best asks and best bids and place orders
@@ -369,12 +372,15 @@ class Trader:
                 # Add all the above orders to the result dict
                 result[product] = orders
 
-            elif product == "COCONUTS":
-                pairs_trade = self.pairs_trading("COCONUTS", "PINA_COLADAS", threshold=5)
-                if pairs_trade is not None:
-                    coconut_order, pinada_order = pairs_trade
-                    result["COCONUTS"].append(coconut_order)
-                    result["PINA_COLADAS"].append(pinada_order)
+            elif product in ["COCONUTS", "PINA_COLADAS"]:
+                if not first_time_coco_pina:
+                    pairs_trade = self.pairs_trading("COCONUTS", "PINA_COLADAS", threshold=5)
+                    if pairs_trade is not None:
+                        coconut_order, pinada_order = pairs_trade
+                        result["COCONUTS"].append(coconut_order)
+                        result["PINA_COLADAS"].append(pinada_order)
+                else:
+                    first_time_coco_pina = False
 
             elif product == "DIVING_GEAR":
                 # Update Dolphin observations (price)
