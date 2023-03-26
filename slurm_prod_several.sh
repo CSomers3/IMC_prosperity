@@ -3,7 +3,7 @@
 #SBATCH --job-name=IMC
 #SBATCH --output=outs/%x.o%j.txt
 #SBATCH --time=6:00:00
-#SBATCH --mem=8G
+#SBATCH --mem=80G
 #SBATCH --cpus-per-task=40
 #SBATCH --partition=cpu_prod
 #SBATCH --mail-user=lhotteromain@gmail.com
