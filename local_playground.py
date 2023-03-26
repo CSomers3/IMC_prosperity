@@ -41,7 +41,7 @@ if __name__ == "__main__":
     ]
     list_min_spread: list[int] = [
         3,
-        # 4,
+        4,
         # 5,
         # 6
     ]
