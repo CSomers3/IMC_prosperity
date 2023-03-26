@@ -31,7 +31,7 @@ def run_pnl_estimation(
         data,
         data_trades,
 ):
-    for product in "BANANAS", "PEARLS":
+    for product in "BANANAS", "PEARLS", "BERRIES", "COCONUTS", "PINA_COLADAS", "DIVING_GEAR":
         Algo.MIN_PROFIT[product] = min_profit
         Algo.SPREAD_TO_MM[product] = min_spread
         Algo.EMA_SHORT_PERIOD[product] = ema_short_period
@@ -365,12 +365,14 @@ def run_pnl_estimation(
         "DIVING_GEAR": diving_gear_best_average_profit,
     }
     for item, best_average_profit in best_average_profits.items():
-        if best_average_profit[1] < sum(all_profits[i][item] for i in range(len(all_profits))) / len(all_profits):
+        new_average_score: float = sum(all_profits[i][item] for i in range(len(all_profits))) / len(all_profits)
+        if best_average_profit[1] < new_average_score:
             best_average_profit[0] = (
                 f"MIN_PROFIT = {min_profit}, "
                 f"SPREAD_TO_MM = {min_spread}, "
                 f"EMA_SHORT_PERIOD = {ema_short_period}, "
                 f"EMA_LONG_PERIOD = {ema_long_period}"
             )
-            best_average_profit[1] = sum(all_profits[i][item] for i in range(len(all_profits))) / len(all_profits)
+            best_average_profit[1] = round(new_average_score, 0)
+            best_average_profit[2] = [round(all_profits[i][item], 0) for i in range(len(all_profits))]
             print(f"NEW {item} HIGHSCORE", best_average_profit)

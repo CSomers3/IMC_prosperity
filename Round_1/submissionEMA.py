@@ -17,28 +17,28 @@ FAIR_VALUE_SHIFT_AT_CROSSOVER: dict[Symbol, int] = {
     "DIVING_GEAR": 0
 }
 SPREAD_TO_MM: dict[Symbol, int] = {
-    "BANANAS": 4,
-    "PEARLS": 4,
-    "COCONUTS": 5,
-    "PINA_COLADAS": 5,
-    "BERRIES": 5,
-    "DIVING_GEAR": 5
+    "BANANAS": 3,
+    "PEARLS": 3,
+    "COCONUTS": 4,
+    "PINA_COLADAS": 4,
+    "BERRIES": 4,
+    "DIVING_GEAR": 4
 }
 EMA_SHORT_PERIOD: dict[Symbol, int] = {
     "BANANAS": 10,
-    "PEARLS": 8,
+    "PEARLS": 12,
     "COCONUTS": 15,
     "PINA_COLADAS": 15,
     "BERRIES": 15,
     "DIVING_GEAR": 15
 }
 EMA_LONG_PERIOD: dict[Symbol, int] = {
-    "BANANAS": 12,
-    "PEARLS": 1000,
-    "COCONUTS": 50,
-    "PINA_COLADAS": 50,
-    "BERRIES": 50,
-    "DIVING_GEAR": 50
+    "BANANAS": 15,
+    "PEARLS": 100,
+    "COCONUTS": 100,
+    "PINA_COLADAS": 100,
+    "BERRIES": 100,
+    "DIVING_GEAR": 100
 }
 MIN_PROFIT: dict[Symbol, int] = {
     "BANANAS": 0,

@@ -8,6 +8,11 @@ import time
 from local_playground_pnl_estimation import run_pnl_estimation, ROUND
 
 
+# Function to be run in parallel
+def run_pnl_estimation_wrapper(args):
+    return run_pnl_estimation(*args)
+
+
 if __name__ == "__main__":
     start_time = time.time()
 
@@ -25,81 +30,73 @@ if __name__ == "__main__":
 
     ## Best parameters and associated PnL, shared across child processes
     manager = mp.Manager()
-    bananas_best_average_profit: list[str | float] = manager.list(["Test", -500000])
-    pearls_best_average_profit: list[str | float] = manager.list(["Test", -500000])
-    coconuts_best_average_profit: list[str | float] = manager.list(["Test", -500000])
-    pina_coladas_best_average_profit: list[str | float] = manager.list(["Test", -500000])
-    berries_best_average_profit: list[str | float] = manager.list(["Test", -500000])
-    diving_gear_best_average_profit: list[str | float] = manager.list(["Test", -500000])
+    bananas_best_average_profit: list[str | float | list[float]] = manager.list(["Test", -500000, []])
+    pearls_best_average_profit: list[str | float | list[float]] = manager.list(["Test", -500000, []])
+    coconuts_best_average_profit: list[str | float | list[float]] = manager.list(["Test", -500000, []])
+    pina_coladas_best_average_profit: list[str | float | list[float]] = manager.list(["Test", -500000, []])
+    berries_best_average_profit: list[str | float | list[float]] = manager.list(["Test", -500000, []])
+    diving_gear_best_average_profit: list[str | float | list[float]] = manager.list(["Test", -500000, []])
     processes = []
 
     list_min_profit: list[int] = [
         0,
         1,
         2,
-        # 5
+        5
     ]
     list_min_spread: list[int] = [
         3,
         4,
-        # 5,
-        # 6
+        5,
+        6
     ]
     list_of_potential_ema_short_period: list[int] = [
-        # 5,
+        5,
         8,
         10,
         12,
         15,
-        # 30,
+        30,
     ]
     list_of_potential_ema_long_period: list[int] = [
         12,
         15,
-        # 20,
+        20,
         30,
-        # 50,
+        50,
         100,
         1000,
     ]
+
+    # Create a list of arguments for each process
+    process_args = []
     for min_profit in list_min_profit:
         for min_spread in list_min_spread:
             for ema_short_period in list_of_potential_ema_short_period:
                 for ema_long_period in list_of_potential_ema_long_period:
                     if ema_short_period < ema_long_period:
-                        process = mp.Process(
-                            target=run_pnl_estimation,
-                            args=(
-                                bananas_best_average_profit,
-                                pearls_best_average_profit,
-                                coconuts_best_average_profit,
-                                pina_coladas_best_average_profit,
-                                berries_best_average_profit,
-                                diving_gear_best_average_profit,
-                                min_profit,
-                                min_spread,
-                                ema_short_period,
-                                ema_long_period,
-                                data,
-                                data_trades,
-                            )
+                        args = (
+                            bananas_best_average_profit,
+                            pearls_best_average_profit,
+                            coconuts_best_average_profit,
+                            pina_coladas_best_average_profit,
+                            berries_best_average_profit,
+                            diving_gear_best_average_profit,
+                            min_profit,
+                            min_spread,
+                            ema_short_period,
+                            ema_long_period,
+                            data,
+                            data_trades,
                         )
-                        processes.append(process)
-                        process.start()
-                        # run_pnl_estimation(
-                        #     bananas_best_average_profit,
-                        #     pearls_best_average_profit,
-                        #     min_spread,
-                        #     ema_short_period,
-                        #     ema_long_period,
-                        #     percent_put_when_mm,
-                        #     data,
-                        #     data_trades,
-                        # )
+                        process_args.append(args)
 
-    # Wait for all processes to finish
-    for process in processes:
-        process.join()
+    # Set the maximum number of concurrent processes
+    max_processes = 40
+
+    # Create a process pool and run the processes
+    with mp.Pool(processes=max_processes) as pool:
+        pool.map(run_pnl_estimation_wrapper, process_args)
 
 
     print("BANANAS BEST AVERAGE PROFIT:", bananas_best_average_profit[1])
