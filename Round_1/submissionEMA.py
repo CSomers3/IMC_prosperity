@@ -7,22 +7,26 @@ from datamodel import Order, TradingState, Symbol, OrderDepth
 
 ### HYPERPARAMETERS
 ###
-# Initialize hyperparameters
+# Initialize hyperparameters (TO-DO REMOVE THOSE WE DON'T USE AND DON'T UPDATE FAIR VALUE IF WE DON'T USE IT)
 FAIR_VALUE_SHIFT_AT_CROSSOVER: dict[Symbol, int] = {
     "BANANAS": 0,
     "PEARLS": 0,
     "COCONUTS": 0,
     "PINA_COLADAS": 0,
     "BERRIES": 0,
-    "DIVING_GEAR": 0
+    "BAGUETTE": 0,
+    "DIP": 0,
+    "UKULELE": 0,
+    "PICNIC_BASKET": 0,
 }
 SPREAD_TO_MM: dict[Symbol, int] = {
     "BANANAS": 3,
     "PEARLS": 3,
-    "COCONUTS": 4,
-    "PINA_COLADAS": 4,
     "BERRIES": 4,
-    "DIVING_GEAR": 4
+    "BAGUETTE": 4,
+    "DIP": 4,
+    "UKULELE": 4,
+    "PICNIC_BASKET": 4,
 }
 EMA_SHORT_PERIOD: dict[Symbol, int] = {
     "BANANAS": 10,
@@ -30,7 +34,10 @@ EMA_SHORT_PERIOD: dict[Symbol, int] = {
     "COCONUTS": 15,
     "PINA_COLADAS": 15,
     "BERRIES": 15,
-    "DIVING_GEAR": 15
+    "BAGUETTE": 15,
+    "DIP": 15,
+    "UKULELE": 15,
+    "PICNIC_BASKET": 15,
 }
 EMA_LONG_PERIOD: dict[Symbol, int] = {
     "BANANAS": 15,
@@ -38,7 +45,10 @@ EMA_LONG_PERIOD: dict[Symbol, int] = {
     "COCONUTS": 100,
     "PINA_COLADAS": 100,
     "BERRIES": 100,
-    "DIVING_GEAR": 100
+    "BAGUETTE": 100,
+    "DIP": 100,
+    "UKULELE": 100,
+    "PICNIC_BASKET": 100,
 }
 MIN_PROFIT: dict[Symbol, int] = {
     "BANANAS": 0,
@@ -46,7 +56,10 @@ MIN_PROFIT: dict[Symbol, int] = {
     "COCONUTS": 0,
     "PINA_COLADAS": 0,
     "BERRIES": 0,
-    "DIVING_GEAR": 0
+    "BAGUETTE": 0,
+    "DIP": 0,
+    "UKULELE": 0,
+    "PICNIC_BASKET": 0,
 }
 ###
 
@@ -134,6 +147,10 @@ class Trader:
             "BERRIES",
             "DIVING_GEAR",
             "DOLPHINS",
+            "BAGUETTE",
+            "DIP",
+            "UKULELE",
+            "PICNIC_BASKET",
         ]
         self.pos_limit: dict[str, list[int]] = {
             "PEARLS": [-20, 20],
@@ -141,12 +158,17 @@ class Trader:
             "COCONUTS": [-600, 600],
             "PINA_COLADAS": [-300, 300],
             "BERRIES": [-250, 250],
-            "DIVING_GEAR": [-50, 50]
+            "DIVING_GEAR": [-50, 50],
+            "BAGUETTE": [-150, 150],
+            "DIP": [-300, 300],
+            "UKULELE": [-70, 70],
+            "PICNIC_BASKET": [-70, 70]
         }
         self.pos = {}
-        self.spread = SPREAD_TO_MM
+
         self.fair_value: dict[Symbol, float] = {product: 0 for product in self.products}
         self.historical_prices = {product: [] for product in self.products}
+
         self.need_to_buy_back = False  # for diving gear
         self.last_price_sold = 0  # for diving gear
         self.need_to_sell_back = False  # for diving gear
