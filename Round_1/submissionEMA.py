@@ -270,16 +270,16 @@ class Trader:
                 f"{product}: Volume limit {self.pos_limit[product]}; position {self.pos[product]}"
             )
 
-        # # Update pos_lim according to timestamp
-        # if state.timestamp < 554767:
-        #     self.pos_limit["BERRIES"][1] = math.ceil(5 + ((250-5)/554767-0)*state.timestamp)
-        # else:
-        #     self.pos_limit["BERRIES"][1] = math.ceil(
-        #         (1_000_000*250-554767*5)/(1_000_000-554767) +
-        #         (5-250)/(1_000_000-554767) * state.timestamp
-        #     )
-        #
-        # self.pos_limit["BANANAS"][1] = math.ceil(20 + (15-20)/(1_000_000-0)*state.timestamp)
+        # Update pos_lim according to timestamp
+        if state.timestamp < 554767:
+            self.pos_limit["BERRIES"][1] = math.ceil(5 + ((250-5)/554767-0)*state.timestamp)
+        else:
+            self.pos_limit["BERRIES"][1] = math.ceil(
+                (1_000_000*250-554767*5)/(1_000_000-554767) +
+                (5-250)/(1_000_000-554767) * state.timestamp
+            )
+
+        self.pos_limit["BANANAS"][1] = math.ceil(20 + (15-20)/(1_000_000-0)*state.timestamp)
 
         # Iterate over all the available products to place the orders
         for product in state.order_depths.keys():
