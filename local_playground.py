@@ -35,9 +35,9 @@ if __name__ == "__main__":
 
     list_min_profit: list[int] = [
         0,
-        # 1,
-        # 2,
-        # 5
+        1,
+        2,
+        5
     ]
     list_min_spread: list[int] = [
         3,
@@ -47,20 +47,20 @@ if __name__ == "__main__":
     ]
     list_of_potential_ema_short_period: list[int] = [
         5,
-        # 8,
-        # 10,
-        # 12,
-        # 15,
-        # 30,
+        8,
+        10,
+        12,
+        15,
+        30,
     ]
     list_of_potential_ema_long_period: list[int] = [
         12,
-        # 15,
-        # 20,
-        # 30,
-        # 50,
-        # 100,
-        # 1000,
+        15,
+        20,
+        30,
+        50,
+        100,
+        1000,
     ]
     for min_profit in list_min_profit:
         for min_spread in list_min_spread:

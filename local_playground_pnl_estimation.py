@@ -41,8 +41,8 @@ def run_pnl_estimation(
     all_profits: list[dict[str, float]] = []
     day: str
     for day in [
-        # "0",
-        # "1",
+        "0",
+        "1",
         "2",
     ]:
         with suppress_output(SUPPRESS_PRINTS):
@@ -53,7 +53,7 @@ def run_pnl_estimation(
         df_simulation: pd.DataFrame = data[f"prices_round_{ROUND}_day_{day}.csv"]
 
         # ## Only take the first % of the rows of df_simulation
-        # df_simulation = df_simulation[:int(len(df_simulation) * 0.02)]
+        # df_simulation = df_simulation[:int(len(df_simulation) * 0.1)]
 
         ## Create the Trader object
         trader = Algo.Trader()
