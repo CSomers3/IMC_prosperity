@@ -16,14 +16,6 @@ FAIR_VALUE_SHIFT_AT_CROSSOVER: dict[Symbol, int] = {
     "BERRIES": 0,
     "DIVING_GEAR": 0
 }
-PERCENT_PUT_WHEN_MM: dict[Symbol, float] = {  # not actually a percentage, but the number of shares when at 0
-    "BANANAS": 20,
-    "PEARLS": 20,
-    "COCONUTS": 600,
-    "PINA_COLADAS": 300,
-    "BERRIES": 250,
-    "DIVING_GEAR": 50
-}
 SPREAD_TO_MM: dict[Symbol, int] = {
     "BANANAS": 4,
     "PEARLS": 4,
@@ -42,7 +34,7 @@ EMA_SHORT_PERIOD: dict[Symbol, int] = {
 }
 EMA_LONG_PERIOD: dict[Symbol, int] = {
     "BANANAS": 12,
-    "PEARLS": 60,
+    "PEARLS": 1000,
     "COCONUTS": 50,
     "PINA_COLADAS": 50,
     "BERRIES": 50,
@@ -79,7 +71,7 @@ def get_top_of_book(
     # to buy for the lowest price possible.
     best_asks = [(price, order_depth.sell_orders[price]) for price in ask_prices]
 
-    # Return the lists of best bids and asks
+    # Return the lists of best bids and asks and spread
     return best_bids, best_asks, best_asks[0][0] - best_bids[0][0]
 
 
@@ -143,18 +135,22 @@ class Trader:
             "DIVING_GEAR",
             "DOLPHINS",
         ]
-        self.pos_limit = {
-            "PEARLS": 20,
-            "BANANAS": 20,
-            "COCONUTS": 600,
-            "PINA_COLADAS": 300,
-            "BERRIES": 250,
-            "DIVING_GEAR": 50
+        self.pos_limit: dict[str, list[int]] = {
+            "PEARLS": [-20, 20],
+            "BANANAS": [-20, 20],
+            "COCONUTS": [-600, 600],
+            "PINA_COLADAS": [-300, 300],
+            "BERRIES": [-250, 250],
+            "DIVING_GEAR": [-50, 50]
         }
         self.pos = {}
         self.spread = SPREAD_TO_MM
         self.fair_value: dict[Symbol, float] = {product: 0 for product in self.products}
         self.historical_prices = {product: [] for product in self.products}
+        self.need_to_buy_back = False  # for diving gear
+        self.last_price_sold = 0  # for diving gear
+        self.need_to_sell_back = False  # for diving gear
+        self.last_price_bought = 0  # for diving gear
 
     def update_fair_value(self, product: str) -> None:
         """
@@ -189,8 +185,8 @@ class Trader:
         """
         Based on positions, make market
         """
-        bid_size = int(PERCENT_PUT_WHEN_MM[product] * (1 - self.pos[product] / self.pos_limit[product]))
-        ask_size = -int(PERCENT_PUT_WHEN_MM[product] * (1 + self.pos[product] / self.pos_limit[product]))
+        bid_size = self.pos_limit[product][1] - self.pos[product]
+        ask_size = self.pos_limit[product][0] - self.pos[product]
 
         if cleared_best_bid:
             if len(bids) > 1:
@@ -228,9 +224,9 @@ class Trader:
         if average_residual > threshold:  # if residuals are >0, then product 2 is more expensive than anticipated by
             # product 1, long product1 and short product2
             if (
-                    self.pos[product1] + 10 > self.pos_limit[product1]
+                    self.pos[product1] + 10 > self.pos_limit[product1][1]
                     or
-                    self.pos[product2] - 10 < -self.pos_limit[product2]
+                    self.pos[product2] - 10 < self.pos_limit[product2][0]
             ):
                 return None
             else:
@@ -240,9 +236,9 @@ class Trader:
         elif average_residual < -threshold:  # if residuals are <0, then product 2 is cheaper than anticipated by
             # product 1 short product1 and long product1
             if (
-                    self.pos[product1] - 10 < -self.pos_limit[product1]
+                    self.pos[product1] - 10 < self.pos_limit[product1][0]
                     or
-                    self.pos[product2] + 10 > self.pos_limit[product2]
+                    self.pos[product2] + 10 > self.pos_limit[product2][1]
             ):
                 return None
             else:
@@ -274,15 +270,16 @@ class Trader:
                 f"{product}: Volume limit {self.pos_limit[product]}; position {self.pos[product]}"
             )
 
-        # Update pos_lim according to timestamp
-        if state.timestamp < 554767:
-            self.pos_limit["BERRIES"] = math.ceil(5 + ((250-5)/554767-0)*state.timestamp)
-        else:
-            self.pos_limit["BERRIES"] = math.ceil(250 + (5-250)/(1_000_000-554767)*state.timestamp)
-
-        self.pos_limit["BANANAS"] = math.ceil(20 + (15-20)/(1_000_000-0)*state.timestamp)
-
-        print(f"Timestamp: {state.timestamp}, pos_limit: {self.pos_limit}")
+        # # Update pos_lim according to timestamp
+        # if state.timestamp < 554767:
+        #     self.pos_limit["BERRIES"][1] = math.ceil(5 + ((250-5)/554767-0)*state.timestamp)
+        # else:
+        #     self.pos_limit["BERRIES"][1] = math.ceil(
+        #         (1_000_000*250-554767*5)/(1_000_000-554767) +
+        #         (5-250)/(1_000_000-554767) * state.timestamp
+        #     )
+        #
+        # self.pos_limit["BANANAS"][1] = math.ceil(20 + (15-20)/(1_000_000-0)*state.timestamp)
 
         # Iterate over all the available products to place the orders
         for product in state.order_depths.keys():
@@ -317,7 +314,7 @@ class Trader:
                     if ask < self.fair_value[product] - MIN_PROFIT[product]:
                         # then buy it, if we can
                         buy_volume = min(
-                            -vol, self.pos_limit[product] - self.pos[product]
+                            -vol, self.pos_limit[product][1] - self.pos[product]
                         )
                         if buy_volume > 0:
                             self.pos[product] += buy_volume
@@ -333,7 +330,7 @@ class Trader:
                     if bid > self.fair_value[product] + MIN_PROFIT[product]:
                         # then sell it if we can
                         sellable_volume = max(
-                            -vol, -self.pos_limit[product] - self.pos[product]
+                            -vol, self.pos_limit[product][0] - self.pos[product]
                         )
                         if sellable_volume < 0:
                             self.pos[product] += sellable_volume
@@ -363,32 +360,74 @@ class Trader:
                 print(f"DOLPHINS: {dolphin_price}")
                 self.historical_prices["DOLPHINS"].append(dolphin_price)
 
-                residuals: float = calculate_linear_regression(
-                    self.historical_prices["DOLPHINS"],
-                    self.historical_prices["DIVING_GEAR"]
-                )
-
-                if residuals is not None:
-                    if residuals > 100:
-                        # diving gear more expensive than dolphin-derived-demand
-                        sellable_volume = max(-10, -self.pos_limit[product] - self.pos[product])
-                        print(f"Residuals: {residuals}>0, so shorting DIVING_GEAR (volume = {sellable_volume})")
-                        short = Order(
+                # If big drop or big spike* in dolphin sightings in the last timestamp compared to the average last 5
+                # timestamps, then buy or sell diving gear
+                # * +/- 10
+                if len(self.historical_prices["DOLPHINS"]) > 5:
+                    mean_last_5 = sum(self.historical_prices["DOLPHINS"][-6:-1]) / 5
+                    if dolphin_price > mean_last_5 + 10:
+                        # Buy as much diving gear as possible
+                        orders.append(Order(
                             "DIVING_GEAR",
-                            math.ceil(self.fair_value[product] + MIN_PROFIT[product]),
-                            sellable_volume
+                            best_asks[0][0],
+                            self.pos_limit["DIVING_GEAR"][1]-self.pos["DIVING_GEAR"])
                         )
-                        result["DIVING_GEAR"].append(short)
-
-                    elif residuals < -100:
-                        # diving gear cheaper than dolphin-derived-demand
-                        buyable_volume = min(10, self.pos_limit[product] - self.pos[product])
-                        print(f"Residuals: {residuals}<0, so long DIVING_GEAR (volume = {buyable_volume})")
-                        long = Order(
+                        print(
+                            f"DIVING_GEAR: "
+                            f"Buying at ${best_asks[0][0]}"
+                            f" x "
+                            f"{self.pos_limit['DIVING_GEAR'][1]-self.pos['DIVING_GEAR']}"
+                        )
+                        self.need_to_sell_back = True
+                        self.last_price_bought = best_asks[0][0]
+                    elif dolphin_price < mean_last_5 - 10:
+                        # Sell as much diving gear as possible
+                        orders.append(Order(
                             "DIVING_GEAR",
-                            int(self.fair_value[product] - MIN_PROFIT[product]),
-                            buyable_volume
+                            best_bids[0][0],
+                            self.pos_limit["DIVING_GEAR"][0]-self.pos["DIVING_GEAR"])
                         )
-                        result["DIVING_GEAR"].append(long)
+                        print(
+                            f"DIVING_GEAR: "
+                            f"Selling at ${best_bids[0][0]}"
+                            f" x "
+                            f"{self.pos_limit['DIVING_GEAR'][0]-self.pos['DIVING_GEAR']}"
+                        )
+                        self.need_to_buy_back = True
+                        self.last_price_sold = best_bids[0][0]
+
+                    if self.need_to_sell_back:
+                        if best_bids[0][0] > self.last_price_bought + 200:
+                            # new price which we sell the stuff is higher than the price we bought it for
+                            orders.append(Order(
+                                "DIVING_GEAR",
+                                best_bids[0][0],
+                                self.pos_limit["DIVING_GEAR"][0]-self.pos["DIVING_GEAR"])
+                            )
+                            print(
+                                f"DIVING_GEAR: "
+                                f"Selling at ${best_bids[0][0]}"
+                                f" x "
+                                f"{self.pos_limit['DIVING_GEAR'][0]-self.pos['DIVING_GEAR']}"
+                            )
+                            self.need_to_sell_back = False
+
+                    if self.need_to_buy_back:
+                        if best_asks[0][0] < self.last_price_sold - 200:
+                            # new price which we buy the stuff is lower than the price we sold it for
+                            orders.append(Order(
+                                "DIVING_GEAR",
+                                best_asks[0][0],
+                                self.pos_limit["DIVING_GEAR"][1]-self.pos["DIVING_GEAR"])
+                            )
+                            print(
+                                f"DIVING_GEAR: "
+                                f"Buying at ${best_asks[0][0]}"
+                                f" x "
+                                f"{self.pos_limit['DIVING_GEAR'][1]-self.pos['DIVING_GEAR']}"
+                            )
+                            self.need_to_buy_back = False
+
+                    result["DIVING_GEAR"] = orders
 
         return result

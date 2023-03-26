@@ -28,7 +28,6 @@ def run_pnl_estimation(
         min_spread,
         ema_short_period,
         ema_long_period,
-        percent_put_when_mm,
         data,
         data_trades,
 ):
@@ -37,7 +36,6 @@ def run_pnl_estimation(
     #     Algo.SPREAD_TO_MM[product] = min_spread
     #     Algo.EMA_SHORT_PERIOD[product] = ema_short_period
     #     Algo.EMA_LONG_PERIOD[product] = ema_long_period
-    #     Algo.PERCENT_PUT_WHEN_MM[product] = percent_put_when_mm
 
     ## Loop through the historic days
     all_profits: list[dict[str, float]] = []
@@ -65,7 +63,6 @@ def run_pnl_estimation(
             print("MIN_PROFIT:", Algo.MIN_PROFIT)
             print("FAIR_VALUE_SHIFT_AT_CROSSOVER:", Algo.FAIR_VALUE_SHIFT_AT_CROSSOVER)
             print("SPREAD_TO_MM:", Algo.SPREAD_TO_MM)
-            print("PERCENT_PUT_WHEN_MM:", Algo.PERCENT_PUT_WHEN_MM)
             print("EMA_SHORT_PERIOD:", Algo.EMA_SHORT_PERIOD)
             print("EMA_LONG_PERIOD:", Algo.EMA_LONG_PERIOD)
 
@@ -372,7 +369,6 @@ def run_pnl_estimation(
             best_average_profit[0] = (
                 f"MIN_PROFIT = {min_profit}, "
                 f"SPREAD_TO_MM = {min_spread}, "
-                f"PERCENT_PUT_WHEN_MM = {percent_put_when_mm}, "
                 f"EMA_SHORT_PERIOD = {ema_short_period}, "
                 f"EMA_LONG_PERIOD = {ema_long_period}"
             )

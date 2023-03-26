@@ -45,14 +45,6 @@ if __name__ == "__main__":
         # 5,
         # 6
     ]
-    list_of_potential_percent_put_when_mm: list[int] = [
-        0,
-        # 5,
-        # 10,
-        # 15,
-        # 18,
-        # 20
-    ]
     list_of_potential_ema_short_period: list[int] = [
         5,
         # 8,
@@ -72,40 +64,38 @@ if __name__ == "__main__":
     ]
     for min_profit in list_min_profit:
         for min_spread in list_min_spread:
-            for percent_put_when_mm in list_of_potential_percent_put_when_mm:
-                for ema_short_period in list_of_potential_ema_short_period:
-                    for ema_long_period in list_of_potential_ema_long_period:
-                        if ema_short_period < ema_long_period:
-                            process = mp.Process(
-                                target=run_pnl_estimation,
-                                args=(
-                                    bananas_best_average_profit,
-                                    pearls_best_average_profit,
-                                    coconuts_best_average_profit,
-                                    pina_coladas_best_average_profit,
-                                    berries_best_average_profit,
-                                    diving_gear_best_average_profit,
-                                    min_profit,
-                                    min_spread,
-                                    ema_short_period,
-                                    ema_long_period,
-                                    percent_put_when_mm,
-                                    data,
-                                    data_trades,
-                                )
+            for ema_short_period in list_of_potential_ema_short_period:
+                for ema_long_period in list_of_potential_ema_long_period:
+                    if ema_short_period < ema_long_period:
+                        process = mp.Process(
+                            target=run_pnl_estimation,
+                            args=(
+                                bananas_best_average_profit,
+                                pearls_best_average_profit,
+                                coconuts_best_average_profit,
+                                pina_coladas_best_average_profit,
+                                berries_best_average_profit,
+                                diving_gear_best_average_profit,
+                                min_profit,
+                                min_spread,
+                                ema_short_period,
+                                ema_long_period,
+                                data,
+                                data_trades,
                             )
-                            processes.append(process)
-                            process.start()
-                            # run_pnl_estimation(
-                            #     bananas_best_average_profit,
-                            #     pearls_best_average_profit,
-                            #     min_spread,
-                            #     ema_short_period,
-                            #     ema_long_period,
-                            #     percent_put_when_mm,
-                            #     data,
-                            #     data_trades,
-                            # )
+                        )
+                        processes.append(process)
+                        process.start()
+                        # run_pnl_estimation(
+                        #     bananas_best_average_profit,
+                        #     pearls_best_average_profit,
+                        #     min_spread,
+                        #     ema_short_period,
+                        #     ema_long_period,
+                        #     percent_put_when_mm,
+                        #     data,
+                        #     data_trades,
+                        # )
 
     # Wait for all processes to finish
     for process in processes:
