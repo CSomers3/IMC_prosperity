@@ -14,7 +14,7 @@ from datamodel import Order, TradingState, Symbol, OrderDepth
 
 
 SUPPRESS_PRINTS: bool = True
-ROUND = 3
+ROUND = 4
 
 
 def run_pnl_estimation(
@@ -24,6 +24,10 @@ def run_pnl_estimation(
         pina_coladas_best_average_profit,
         berries_best_average_profit,
         diving_gear_best_average_profit,
+        dip_best_average_profit,
+        baguette_best_average_profit,
+        ukulele_best_average_profit,
+        picnic_basket_best_average_profit,
         min_profit,
         min_spread,
         ema_short_period,
@@ -31,26 +35,30 @@ def run_pnl_estimation(
         data,
         data_trades,
 ):
-    for product in "BANANAS", "PEARLS", "BERRIES", "COCONUTS", "PINA_COLADAS", "DIVING_GEAR":
-        Algo.MIN_PROFIT[product] = min_profit
-        Algo.SPREAD_TO_MM[product] = min_spread
-        Algo.EMA_SHORT_PERIOD[product] = ema_short_period
-        Algo.EMA_LONG_PERIOD[product] = ema_long_period
+    # for product in "BANANAS", "PEARLS", "BERRIES", "COCONUTS", "PINA_COLADAS", "DIVING_GEAR":
+    #     if product in Algo.MIN_PROFIT:
+    #         Algo.MIN_PROFIT[product] = min_profit
+    #     if product in Algo.SPREAD_TO_MM:
+    #         Algo.SPREAD_TO_MM[product] = min_spread
+    #     if product in Algo.EMA_SHORT_PERIOD:
+    #         # Them two go together
+    #         Algo.EMA_SHORT_PERIOD[product] = ema_short_period
+    #         Algo.EMA_LONG_PERIOD[product] = ema_long_period
 
     ## Loop through the historic days
     all_profits: list[dict[str, float]] = []
     day: str
     for day in [
-        "0",
         "1",
         "2",
+        "3",
     ]:
-        with suppress_output(SUPPRESS_PRINTS):
-            print("=====================================")
-            print(f"DATA FOR DAY {day}")
-            print("=====================================")
+        print("=====================================")
+        print(f"RUNNING DAY {day}")
+        print("=====================================")
 
         df_simulation: pd.DataFrame = data[f"prices_round_{ROUND}_day_{day}.csv"]
+        trades = data_trades[f"trades_round_{ROUND}_day_{day}_nn.csv"]
 
         # ## Only take the first % of the rows of df_simulation
         # df_simulation = df_simulation[:int(len(df_simulation) * 0.1)]
@@ -60,8 +68,8 @@ def run_pnl_estimation(
 
         # Print hyperparameters
         with suppress_output(SUPPRESS_PRINTS):
-            print("MIN_PROFIT:", Algo.MIN_PROFIT)
             print("FAIR_VALUE_SHIFT_AT_CROSSOVER:", Algo.FAIR_VALUE_SHIFT_AT_CROSSOVER)
+            print("MIN_PROFIT:", Algo.MIN_PROFIT)
             print("SPREAD_TO_MM:", Algo.SPREAD_TO_MM)
             print("EMA_SHORT_PERIOD:", Algo.EMA_SHORT_PERIOD)
             print("EMA_LONG_PERIOD:", Algo.EMA_LONG_PERIOD)
@@ -232,9 +240,6 @@ def run_pnl_estimation(
                                 # price (it's a buy order here, so we want to find trades that were made
                                 # at a lower price than the one we are) If we find one, we add the
                                 # quantity to our position and update the PnL
-                                trades = data_trades[
-                                    f"trades_round_{ROUND}_day_{day}_nn.csv"
-                                ]
                                 trades = trades[trades["symbol"] == product]
                                 trades = trades[
                                     trades["timestamp"] == timestamp
@@ -262,9 +267,6 @@ def run_pnl_estimation(
                                 # price (it's a sell order here, so we want to find trades that were
                                 # made at a higher price than the one we are) If we find one, we add the
                                 # quantity to our position and update the PnL
-                                trades = data_trades[
-                                    f"trades_round_{ROUND}_day_{day}_nn.csv"
-                                ]
                                 trades = trades[trades["symbol"] == product]
                                 trades = trades[
                                     trades["timestamp"] == timestamp
@@ -295,7 +297,11 @@ def run_pnl_estimation(
                 "COCONUTS": 600,
                 "PINA_COLADAS": 300,
                 "BERRIES": 250,
-                "DIVING_GEAR": 50
+                "DIVING_GEAR": 50,
+                "BAGUETTE": 150,
+                "DIP": 300,
+                "UKULELE": 70,
+                "PICNIC_BASKET": 70
             }
             for product in products:
                 try:

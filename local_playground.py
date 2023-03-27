@@ -36,36 +36,40 @@ if __name__ == "__main__":
     pina_coladas_best_average_profit: list[str | float | list[float]] = manager.list(["Test", -500000, []])
     berries_best_average_profit: list[str | float | list[float]] = manager.list(["Test", -500000, []])
     diving_gear_best_average_profit: list[str | float | list[float]] = manager.list(["Test", -500000, []])
+    dip_best_average_profit: list[str | float | list[float]] = manager.list(["Test", -500000, []])
+    baguette_best_average_profit: list[str | float | list[float]] = manager.list(["Test", -500000, []])
+    ukulele_best_average_profit: list[str | float | list[float]] = manager.list(["Test", -500000, []])
+    picnic_basket_best_average_profit: list[str | float | list[float]] = manager.list(["Test", -500000, []])
     processes = []
 
     list_min_profit: list[int] = [
         0,
-        1,
-        2,
-        5
+        # 1,
+        # 2,
+        # 5
     ]
     list_min_spread: list[int] = [
         3,
-        4,
-        5,
-        6
+        # 4,
+        # 5,
+        # 6
     ]
     list_of_potential_ema_short_period: list[int] = [
         5,
-        8,
-        10,
-        12,
-        15,
-        30,
+        # 8,
+        # 10,
+        # 12,
+        # 15,
+        # 30,
     ]
     list_of_potential_ema_long_period: list[int] = [
         12,
-        15,
-        20,
-        30,
-        50,
-        100,
-        1000,
+        # 15,
+        # 20,
+        # 30,
+        # 50,
+        # 100,
+        # 1000,
     ]
 
     # Create a list of arguments for each process
@@ -82,6 +86,10 @@ if __name__ == "__main__":
                             pina_coladas_best_average_profit,
                             berries_best_average_profit,
                             diving_gear_best_average_profit,
+                            dip_best_average_profit,
+                            baguette_best_average_profit,
+                            ukulele_best_average_profit,
+                            picnic_basket_best_average_profit,
                             min_profit,
                             min_spread,
                             ema_short_period,
@@ -116,5 +124,18 @@ if __name__ == "__main__":
     print("========================================")
     print("DIVING GEAR BEST AVERAGE PROFIT:", diving_gear_best_average_profit[1])
     print("PARAMS:", diving_gear_best_average_profit[0])
+    print("========================================")
+    print("DIP BEST AVERAGE PROFIT:", dip_best_average_profit[1])
+    print("PARAMS:", dip_best_average_profit[0])
+    print("========================================")
+    print("BAGUETTE BEST AVERAGE PROFIT:", baguette_best_average_profit[1])
+    print("PARAMS:", baguette_best_average_profit[0])
+    print("========================================")
+    print("UKULELE BEST AVERAGE PROFIT:", ukulele_best_average_profit[1])
+    print("PARAMS:", ukulele_best_average_profit[0])
+    print("========================================")
+    print("PICNIC BASKET BEST AVERAGE PROFIT:", picnic_basket_best_average_profit[1])
+    print("PARAMS:", picnic_basket_best_average_profit[0])
+
 
     print("Total time: ", time.time() - start_time, "s")

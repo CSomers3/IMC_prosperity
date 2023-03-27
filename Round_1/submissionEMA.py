@@ -19,18 +19,22 @@ FAIR_VALUE_SHIFT_AT_CROSSOVER: dict[Symbol, int] = {
     "UKULELE": 0,
     "PICNIC_BASKET": 0,
 }
+FAIR_VALUE_ADJUSTMENT: dict[Symbol, int] = {
+    "BERRIES": 1,
+    "BANANAS": 1,
+}
 SPREAD_TO_MM: dict[Symbol, int] = {
-    "BANANAS": 3,
-    "PEARLS": 3,
-    "BERRIES": 4,
-    "BAGUETTE": 4,
-    "DIP": 4,
-    "UKULELE": 4,
-    "PICNIC_BASKET": 4,
+    "BANANAS": 4,
+    "PEARLS": 4,
+    "BERRIES": 5,
+    "BAGUETTE": 5,
+    "DIP": 5,
+    "UKULELE": 5,
+    "PICNIC_BASKET": 5,
 }
 EMA_SHORT_PERIOD: dict[Symbol, int] = {
     "BANANAS": 10,
-    "PEARLS": 12,
+    "PEARLS": 8,
     "COCONUTS": 15,
     "PINA_COLADAS": 15,
     "BERRIES": 15,
@@ -40,11 +44,11 @@ EMA_SHORT_PERIOD: dict[Symbol, int] = {
     "PICNIC_BASKET": 15,
 }
 EMA_LONG_PERIOD: dict[Symbol, int] = {
-    "BANANAS": 15,
-    "PEARLS": 100,
-    "COCONUTS": 100,
-    "PINA_COLADAS": 100,
-    "BERRIES": 100,
+    "BANANAS": 12,
+    "PEARLS": 1000,
+    "COCONUTS": 50,
+    "PINA_COLADAS": 50,
+    "BERRIES": 50,
     "BAGUETTE": 100,
     "DIP": 100,
     "UKULELE": 100,
@@ -172,7 +176,7 @@ class Trader:
         self.need_to_sell_back = False  # for diving gear
         self.last_price_bought = 0  # for diving gear
 
-    def update_fair_value(self, product: str) -> None:
+    def update_fair_value(self, product: str, timestamp: int) -> None:
         """
         Update the fair value of the given product using EMA.
         """
@@ -184,6 +188,18 @@ class Trader:
         )
 
         self.fair_value[product] = (short_ema + long_ema) / 2
+
+        if product == "BERRIES":
+            if 400_000 <= timestamp <= 558150:
+                self.fair_value[product] += FAIR_VALUE_ADJUSTMENT[product]  # fair_value is too low, we know that
+                # the price will go up, so we increase the fair_value to make sure we buy
+            if timestamp >= 600_000:
+                self.fair_value[product] -= FAIR_VALUE_ADJUSTMENT[product]  # fair_value is too high, we know that
+                # the price will go down, so we decrease the fair_value to make sure we sell
+
+        if product == "BANANA":
+            self.fair_value[product] -= FAIR_VALUE_ADJUSTMENT[product]  # usually bananas price decreases, so we
+            # decrease the fair_value to make sure we sell more than we buy
 
         # if short_ema > long_ema:
         #     # Short EMA is above long EMA, so we are in a bullish trend, so we set the fair value a bit higher than
@@ -293,23 +309,12 @@ class Trader:
                 f"{product}: Volume limit {self.pos_limit[product]}; position {self.pos[product]}"
             )
 
-        # Update pos_lim according to timestamp
-        # if state.timestamp < 554767:
-        #     self.pos_limit["BERRIES"][1] = math.ceil(5 + ((250-5)/554767-0)*state.timestamp)
-        # else:
-        #     self.pos_limit["BERRIES"][1] = math.ceil(
-        #         (1_000_000*250-554767*5)/(1_000_000-554767) +
-        #         (5-250)/(1_000_000-554767) * state.timestamp
-        #     )
-        #
-        # self.pos_limit["BANANAS"][1] = math.ceil(20 + (15-20)/(1_000_000-0)*state.timestamp)
-
         # Iterate over all the available products to place the orders
         for product in state.order_depths.keys():
             # Initialize the list of Orders to be sent as an empty list
             orders: list[Order] = []
 
-            # Track if we cleared the best bid or ask
+            # Track if we cleared the best bid or ask (for the MM)
             cleared_best_bid: bool = False
             cleared_best_ask: bool = False
 
@@ -326,7 +331,7 @@ class Trader:
             # Update the fair value for the current product, but only for the products we need to have access to the
             # fair value, otherwise we compute stuff for nothing
             if product in ["PEARLS", "BANANAS", "BERRIES", "COCONUTS", "PINA_COLADAS"]:
-                self.update_fair_value(product)
+                self.update_fair_value(product, state.timestamp)
 
             if product in ["PEARLS", "BANANAS", "BERRIES"]:
                 # We are going to iterate through the sorted lists of best asks and best bids and place orders
