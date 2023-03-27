@@ -88,8 +88,9 @@ MIN_PROFIT: dict[Symbol, int] = {
     "UKULELE": 0,
     "PICNIC_BASKET": 0
 }
-###
 
+
+###
 
 
 def get_top_of_book(
@@ -144,7 +145,7 @@ def calculate_linear_regression(x, y):
     y_mean = statistics.mean(y)
 
     numerator = sum((x_i - x_mean) * (y_i - y_mean) for x_i, y_i in zip(x, y))
-    denominator = sum((x_i - x_mean)**2 for x_i in x)
+    denominator = sum((x_i - x_mean) ** 2 for x_i in x)
 
     if denominator == 0:
         return None
@@ -153,14 +154,13 @@ def calculate_linear_regression(x, y):
     intercept = y_mean - slope * x_mean
 
     residuals = []
-    for i in range(1, min(11, len(x), len(y))+1):  # x and y might have different lengths since one* is updated before
+    for i in range(1, min(11, len(x), len(y)) + 1):  # x and y might have different lengths since one* is updated before
         # the other one, and this function is called between the two
         # * historical prices
         y_pred = slope * x[-i] + intercept
         residuals.append(y[-i] - y_pred)
 
-    return sum(residuals)/len(residuals)  # if residuals are >0, then y_i is bigger than anticipated
-
+    return sum(residuals) / len(residuals)  # if residuals are >0, then y_i is bigger than anticipated
 
 
 class Trader:
@@ -195,6 +195,7 @@ class Trader:
         self.spread = SPREAD_TO_MM
         self.fair_value: dict[Symbol, float] = {product: 0 for product in self.products}
         self.historical_prices = {product: [] for product in self.products}
+        self.etf = []
         self.need_to_buy_back = False  # for diving gear
         self.last_price_sold = 0  # for diving gear
         self.need_to_sell_back = False  # for diving gear
@@ -341,13 +342,6 @@ class Trader:
                 if i < len(best_asks):
                     self.current_asks[product].append((best_asks[i][0], best_asks[i][1]))
 
-            # self.current_bids[product] = [(best_bids[0][0], best_bids[0][1]),
-            #                               (best_bids[1][0], best_bids[1][1]),
-            #                               (best_bids[2][0], best_bids[2][1])]
-            # self.current_asks[product] = [(best_asks[0][0], best_asks[0][1]),
-            #                               (best_asks[1][0], best_asks[1][1]),
-            #                               (best_asks[2][0], best_asks[2][1])]
-
             # Update the fair value for the current product
             self.update_fair_value(product)
 
@@ -399,7 +393,8 @@ class Trader:
 
                     if self.current_spread[product] > SPREAD_TO_MM[product]:
                         # We have a spread, so we need to adjust the fair value by MarketMaking that spread
-                        mm = self.market_make(self.current_bids[product], self.current_asks[product], product, cleared_best_ask, cleared_best_bid)
+                        mm = self.market_make(self.current_bids[product], self.current_asks[product], product,
+                                              cleared_best_ask, cleared_best_bid)
                         orders.extend(mm)
 
                     # Add all the above orders to the result dict
@@ -428,13 +423,13 @@ class Trader:
                             orders.append(Order(
                                 "DIVING_GEAR",
                                 self.current_asks[product][0][0],
-                                self.pos_limit["DIVING_GEAR"][1]-self.pos["DIVING_GEAR"])
+                                self.pos_limit["DIVING_GEAR"][1] - self.pos["DIVING_GEAR"])
                             )
                             logger.print(
                                 f"DIVING_GEAR: "
                                 f"Buying at ${self.current_asks[product][0][0]}"
                                 f" x "
-                                f"{self.pos_limit['DIVING_GEAR'][1]-self.pos['DIVING_GEAR']}"
+                                f"{self.pos_limit['DIVING_GEAR'][1] - self.pos['DIVING_GEAR']}"
                             )
                             self.need_to_sell_back = True
                             self.last_price_bought = self.current_asks[product][0][0]
@@ -443,13 +438,13 @@ class Trader:
                             orders.append(Order(
                                 "DIVING_GEAR",
                                 self.current_bids[product][0][0],
-                                self.pos_limit["DIVING_GEAR"][0]-self.pos["DIVING_GEAR"])
+                                self.pos_limit["DIVING_GEAR"][0] - self.pos["DIVING_GEAR"])
                             )
                             logger.print(
                                 f"DIVING_GEAR: "
                                 f"Selling at ${self.current_bids[product][0][0]}"
                                 f" x "
-                                f"{self.pos_limit['DIVING_GEAR'][0]-self.pos['DIVING_GEAR']}"
+                                f"{self.pos_limit['DIVING_GEAR'][0] - self.pos['DIVING_GEAR']}"
                             )
                             self.need_to_buy_back = True
                             self.last_price_sold = self.current_bids[product][0][0]
@@ -460,13 +455,13 @@ class Trader:
                                 orders.append(Order(
                                     "DIVING_GEAR",
                                     self.current_bids[product][0][0],
-                                    self.pos_limit["DIVING_GEAR"][0]-self.pos["DIVING_GEAR"])
+                                    self.pos_limit["DIVING_GEAR"][0] - self.pos["DIVING_GEAR"])
                                 )
                                 logger.print(
                                     f"DIVING_GEAR: "
                                     f"Selling at ${self.current_bids[product][0][0]}"
                                     f" x "
-                                    f"{self.pos_limit['DIVING_GEAR'][0]-self.pos['DIVING_GEAR']}"
+                                    f"{self.pos_limit['DIVING_GEAR'][0] - self.pos['DIVING_GEAR']}"
                                 )
                                 self.need_to_sell_back = False
 
@@ -476,17 +471,17 @@ class Trader:
                                 orders.append(Order(
                                     "DIVING_GEAR",
                                     self.current_asks[product][0][0],
-                                    self.pos_limit["DIVING_GEAR"][1]-self.pos["DIVING_GEAR"])
+                                    self.pos_limit["DIVING_GEAR"][1] - self.pos["DIVING_GEAR"])
                                 )
                                 logger.print(
                                     f"DIVING_GEAR: "
                                     f"Buying at ${self.current_asks[product][0][0]}"
                                     f" x "
-                                    f"{self.pos_limit['DIVING_GEAR'][1]-self.pos['DIVING_GEAR']}"
+                                    f"{self.pos_limit['DIVING_GEAR'][1] - self.pos['DIVING_GEAR']}"
                                 )
                                 self.need_to_buy_back = False
 
-                        result["DIVING_GEAR"] = orders
+                    result["DIVING_GEAR"] = orders
 
                 elif product == "PICNIC_BASKET":
                     # Basket = 2*Baguette + 4*Dip + 1*Ukulele
@@ -495,25 +490,36 @@ class Trader:
                                     self.historical_prices["DIP"][-1] * weights["DIP"] +
                                     self.historical_prices["UKULELE"][-1])
 
-                    if self.historical_prices[product][-1] > expected_etf:
+                    self.etf.append(self.historical_prices[product][-1] - expected_etf)
+
+                    short_period = calculate_ema(self.etf, 10)
+                    long_period = calculate_ema(self.etf, 15)
+
+                    av_spread = (short_period + long_period) / 2
+
+                    if self.historical_prices[product][-1] > av_spread:
                         # Baskets overpriced, components underpriced
                         vol_short = max(-10, -self.pos_limit[product][1] - self.pos[product])
                         orders.append(Order(product, self.current_bids[product][0][0], vol_short))
+                        logger.print(f"\nPICNIC_BASKET: Selling at ${self.current_bids[product][0][0]} x {vol_short}\n")
 
                         for component in ["BAGUETTE", "DIP", "UKULELE"]:
-                            long_vol = min(10*weights[component], self.pos_limit[component][1] - self.pos[component])
+                            long_vol = min(10 * weights[component], self.pos_limit[component][1] - self.pos[component])
                             result[component] = [Order(component, self.current_asks[component][0][0], long_vol)]
+                            logger.print(f"{component}: Buying at ${self.current_asks[component][0][0]} x {long_vol}\n")
 
-                    elif self.historical_prices[product][-1] < expected_etf:
+                    elif self.historical_prices[product][-1] < av_spread:
                         vol_long = min(10, self.pos_limit[product][1] - self.pos[product])
                         orders.append(Order(product, self.current_bids[product][0][0], vol_long))
+                        logger.print(f"\nPICNIC_BASKET: Buying at ${self.current_bids[product][0][0]} x {vol_long}\n")
 
                         for component in ["BAGUETTE", "DIP", "UKULELE"]:
-                            short_vol = max(-10*weights[component], -self.pos_limit[component][1] - self.pos[component])
+                            short_vol = max(-10 * weights[component],
+                                            -self.pos_limit[component][1] - self.pos[component])
                             result[component] = [Order(component, self.current_bids[component][0][0], short_vol)]
+                            logger.print(f"{component}: Selling at ${self.current_bids[component][0][0]} x {short_vol}\n")
 
                     result["PICNIC_BASKET"] = orders
 
         logger.flush(state, result)
         return result
-    
