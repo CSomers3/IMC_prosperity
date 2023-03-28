@@ -20,7 +20,7 @@ FAIR_VALUE_SHIFT_AT_CROSSOVER: dict[Symbol, int] = {
     "PICNIC_BASKET": 0,
 }
 FAIR_VALUE_ADJUSTMENT: dict[Symbol, int] = {
-    "BERRIES": 1,
+    "BERRIES": 3,
     "BANANAS": 1,
 }
 SPREAD_TO_MM: dict[Symbol, int] = {
@@ -57,13 +57,9 @@ EMA_LONG_PERIOD: dict[Symbol, int] = {
 MIN_PROFIT: dict[Symbol, int] = {
     "BANANAS": 0,
     "PEARLS": 0,
-    "COCONUTS": 0,
-    "PINA_COLADAS": 0,
-    "BERRIES": 0,
-    "BAGUETTE": 0,
-    "DIP": 0,
-    "UKULELE": 0,
-    "PICNIC_BASKET": 0,
+    "COCONUTS": 2,
+    "PINA_COLADAS": 5,
+    "BERRIES": 1,
 }
 ###
 
@@ -175,6 +171,18 @@ class Trader:
         self.last_price_sold = 0  # for diving gear
         self.need_to_sell_back = False  # for diving gear
         self.last_price_bought = 0  # for diving gear
+
+        # to get all the bids/asks/spreads of ETF products and not be offset by a day
+        self.current_bids = {product: [] for product in ["DIP", "BAGUETTE", "UKULELE", "PICNIC_BASKET"]}
+        self.current_asks = {product: [] for product in ["DIP", "BAGUETTE", "UKULELE", "PICNIC_BASKET"]}
+        self.current_spread = {product: 0 for product in ["DIP", "BAGUETTE", "UKULELE", "PICNIC_BASKET"]}
+
+        # store history of gaps between ETF and E(ETF)
+        self.etf = [
+            398.64075,  # day 1
+            403.26115,  # day 2
+            325.27235,  # day 3
+        ]
 
     def update_fair_value(self, product: str, timestamp: int) -> None:
         """
@@ -309,6 +317,23 @@ class Trader:
                 f"{product}: Volume limit {self.pos_limit[product]}; position {self.pos[product]}"
             )
 
+        # Iterate over the ETF products to update self.current_bids, self.current_spread, etc ...
+        for product in ["DIP", "BAGUETTE", "UKULELE", "PICNIC_BASKET"]:
+            # Get the top of book for the current product
+            order_depth: OrderDepth = state.order_depths[product]
+            best_bids: list[tuple[int, int]]
+            best_asks: list[tuple[int, int]]
+            best_bids, best_asks, spread = get_top_of_book(order_depth)
+
+            # Update the current bids, asks and spread for the current product
+            self.current_bids[product] = best_bids
+            self.current_asks[product] = best_asks
+            self.current_spread[product] = spread
+
+            # Update the historical prices for the current product
+            last_price = (best_bids[0][0] + best_asks[0][0]) / 2
+            self.historical_prices[product].append(last_price)
+
         # Iterate over all the available products to place the orders
         for product in state.order_depths.keys():
             # Initialize the list of Orders to be sent as an empty list
@@ -319,18 +344,25 @@ class Trader:
             cleared_best_ask: bool = False
 
             # Get the top of book for the current product
-            order_depth: OrderDepth = state.order_depths[product]
-            best_bids: list[tuple[int, int]]
-            best_asks: list[tuple[int, int]]
-            best_bids, best_asks, spread = get_top_of_book(order_depth)
+            if product not in ["DIP", "BAGUETTE", "UKULELE", "PICNIC_BASKET"]:
+                # done separetely for those (cf. above)
+                order_depth: OrderDepth = state.order_depths[product]
+                best_bids: list[tuple[int, int]]
+                best_asks: list[tuple[int, int]]
+                best_bids, best_asks, spread = get_top_of_book(order_depth)
 
-            # Update the historical prices for the current product
-            last_price = (best_bids[0][0] + best_asks[0][0]) / 2
-            self.historical_prices[product].append(last_price)
+                # Update the historical prices for the current product
+                last_price = (best_bids[0][0] + best_asks[0][0]) / 2
+                self.historical_prices[product].append(last_price)
 
             # Update the fair value for the current product, but only for the products we need to have access to the
             # fair value, otherwise we compute stuff for nothing
-            if product in ["PEARLS", "BANANAS", "BERRIES", "COCONUTS", "PINA_COLADAS"]:
+            if product in [
+                "PEARLS", "BANANAS",
+                "BERRIES",
+                "COCONUTS", "PINA_COLADAS",
+                "DIP", "BAGUETTE", "UKULELE", "PICNIC_BASKET"
+            ]:
                 self.update_fair_value(product, state.timestamp)
 
             if product in ["PEARLS", "BANANAS", "BERRIES"]:
@@ -398,7 +430,7 @@ class Trader:
                 # * +/- 10
                 if len(self.historical_prices["DOLPHINS"]) > 5:
                     mean_last_5 = sum(self.historical_prices["DOLPHINS"][-6:-1]) / 5
-                    if dolphin_price > mean_last_5 + 10:
+                    if dolphin_price > mean_last_5 + 5:
                         # Buy as much diving gear as possible
                         orders.append(Order(
                             "DIVING_GEAR",
@@ -413,7 +445,7 @@ class Trader:
                         )
                         self.need_to_sell_back = True
                         self.last_price_bought = best_asks[0][0]
-                    elif dolphin_price < mean_last_5 - 10:
+                    elif dolphin_price < mean_last_5 - 5:
                         # Sell as much diving gear as possible
                         orders.append(Order(
                             "DIVING_GEAR",
@@ -462,5 +494,94 @@ class Trader:
                             self.need_to_buy_back = False
 
                     result["DIVING_GEAR"] = orders
+
+
+            elif product == "PICNIC_BASKET":
+                # Basket = 2*Baguette + 4*Dip + 1*Ukulele
+                weights = {"BAGUETTE": 2, "DIP": 4, "UKULELE": 1}
+                expected_etf = (
+                        self.historical_prices["BAGUETTE"][-1] * weights["BAGUETTE"] +
+                        self.historical_prices["DIP"][-1] * weights["DIP"] +
+                        self.historical_prices["UKULELE"][-1]
+                )
+
+                self.etf.append(self.historical_prices["PICNIC_BASKET"][-1] - expected_etf)
+
+                if state.timestamp > 25_000:
+                    mean = sum(self.etf) / len(self.etf)
+                    std = (
+                                  sum((x - mean) ** 2 for x in self.etf) / len(self.etf)
+                    ) ** 0.5
+
+                    threshold = std * 1.5
+
+                    if self.etf[-1] > mean + threshold:
+                        # PICNIC_BASKET is overvalued, sell it
+                        quantity = max(
+                            -self.current_bids["PICNIC_BASKET"][0][1],
+                            self.pos_limit["PICNIC_BASKET"][0] - self.pos["PICNIC_BASKET"]
+                        )
+                        orders.append(Order(
+                            "PICNIC_BASKET",
+                            self.current_bids["PICNIC_BASKET"][0][0],
+                            quantity)
+                        )
+                        print(
+                            f"PICNIC_BASKET: "
+                            f"Selling at ${self.current_bids['PICNIC_BASKET'][0][0]}"
+                            f" x "
+                            f"{quantity}"
+                        )
+
+                        # Hedge with BAGUETTE, DIP, and UKULELE by buying them
+                        for item, weight in weights.items():
+                            buying_quantity: int = min(-weight * quantity, self.pos_limit[item][1] - self.pos[item])
+                            result[item].append(Order(
+                                item,
+                                self.current_asks[item][0][0],
+                                buying_quantity
+                            ))
+                            print(
+                                f"{item}: "
+                                f"Buying at ${self.current_asks[item][0][0]}"
+                                f" x "
+                                f"{buying_quantity}"
+                            )
+
+
+                    elif self.etf[-1] < mean - threshold:
+                        # PICNIC_BASKET is undervalued, buy it
+                        quantity = min(
+                            -self.current_asks["PICNIC_BASKET"][0][1],
+                            self.pos_limit["PICNIC_BASKET"][1] - self.pos["PICNIC_BASKET"]
+                        )
+                        orders.append(Order(
+                            "PICNIC_BASKET",
+                            self.current_asks['PICNIC_BASKET'][0][0],
+                            quantity)
+                        )
+                        print(
+                            f"PICNIC_BASKET: "
+                            f"Buying at ${self.current_asks['PICNIC_BASKET'][0][0]}"
+                            f" x "
+                            f"{quantity}"
+                        )
+
+                        # Hedge with BAGUETTE, DIP, and UKULELE by selling them
+                        for item, weight in weights.items():
+                            selling_quantity = max(-weight * quantity, self.pos_limit[item][0] - self.pos[item])
+                            result[item].append(Order(
+                                item,
+                                self.current_bids[item][0][0],
+                                selling_quantity
+                            ))
+                            print(
+                                f"{item}: "
+                                f"Selling at ${self.current_bids[item][0][0]}"
+                                f" x "
+                                f"{selling_quantity}"
+                            )
+
+                    result["PICNIC_BASKET"] = orders
 
         return result

@@ -49,9 +49,9 @@ def run_pnl_estimation(
     all_profits: list[dict[str, float]] = []
     day: str
     for day in [
-        "1",
+        # "1",
         "2",
-        "3",
+        # "3",
     ]:
         print("=====================================")
         print(f"RUNNING DAY {day}")
@@ -369,6 +369,10 @@ def run_pnl_estimation(
         "PINA_COLADAS": pina_coladas_best_average_profit,
         "BERRIES": berries_best_average_profit,
         "DIVING_GEAR": diving_gear_best_average_profit,
+        "DIP": dip_best_average_profit,
+        "BAGUETTE": baguette_best_average_profit,
+        "UKULELE": ukulele_best_average_profit,
+        "PICNIC_BASKET": picnic_basket_best_average_profit,
     }
     for item, best_average_profit in best_average_profits.items():
         new_average_score: float = sum(all_profits[i][item] for i in range(len(all_profits))) / len(all_profits)
