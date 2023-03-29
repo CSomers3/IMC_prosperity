@@ -178,7 +178,7 @@ class Trader:
         self.current_spread = {product: 0 for product in ["DIP", "BAGUETTE", "UKULELE", "PICNIC_BASKET"]}
 
         # store history of gaps between ETF and E(ETF)
-        self.etf = [
+        self.etf: list[float] = [
             398.64075,  # day 1
             403.26115,  # day 2
             325.27235,  # day 3

@@ -49,9 +49,9 @@ def run_pnl_estimation(
     all_profits: list[dict[str, float]] = []
     day: str
     for day in [
-        # "1",
+        "1",
         "2",
-        # "3",
+        "3",
     ]:
         print("=====================================")
         print(f"RUNNING DAY {day}")
@@ -238,21 +238,21 @@ def run_pnl_estimation(
                                 # let's check in data_trades[f"trades_round_{ROUND}_day_{day}"] if we find a
                                 # trade with the right timestamp and the right product and the right
                                 # price (it's a buy order here, so we want to find trades that were made
-                                # at a lower price than the one we are) If we find one, we add the
+                                # at a lower price than the one we are). If we find one, we add the
                                 # quantity to our position and update the PnL
-                                trades = trades[trades["symbol"] == product]
-                                trades = trades[
-                                    trades["timestamp"] == timestamp
-                                    ]
-                                trades = trades[
-                                    trades["price"] <= order.price
-                                    ]  # if it's equal, we get it because
-                                # we never MM at the same price as a possible trade
-                                if len(trades) > 0:
+                                trades_filtered = trades[trades["symbol"] == product]
+                                trades_filtered = trades_filtered[
+                                    trades_filtered["timestamp"] == timestamp
+                                ]
+                                trades_filtered = trades_filtered[
+                                    trades_filtered["price"] <= order.price
+                                ]
+                                # if it's equal, we get it because we never MM at the same price as a possible trade
+                                if len(trades_filtered) > 0:
                                     # we buy what we can
                                     volume_traded = min(
                                         order.quantity,
-                                        trades["quantity"].sum(),
+                                        trades_filtered["quantity"].sum(),
                                     )
                                     current_trading_state.position[
                                         product
@@ -267,19 +267,19 @@ def run_pnl_estimation(
                                 # price (it's a sell order here, so we want to find trades that were
                                 # made at a higher price than the one we are) If we find one, we add the
                                 # quantity to our position and update the PnL
-                                trades = trades[trades["symbol"] == product]
-                                trades = trades[
-                                    trades["timestamp"] == timestamp
-                                    ]
-                                trades = trades[
-                                    trades["price"] >= order.price
-                                    ]  # if it's equal, we get it because
+                                trades_filtered = trades[trades["symbol"] == product]
+                                trades_filtered = trades_filtered[
+                                    trades_filtered["timestamp"] == timestamp
+                                ]
+                                trades_filtered = trades_filtered[
+                                    trades_filtered["price"] >= order.price
+                                ]  # if it's equal, we get it because
                                 # we never MM at the same price as a possible trade
-                                if len(trades) > 0:
+                                if len(trades_filtered) > 0:
                                     # we sell what we can
                                     volume_traded = min(
                                         -order.quantity,
-                                        trades["quantity"].sum(),
+                                        trades_filtered["quantity"].sum(),
                                     )
                                     current_trading_state.position[
                                         product
