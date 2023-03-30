@@ -13,7 +13,7 @@ from local_playground_suppress_print_context_manager import suppress_output
 from datamodel import Order, TradingState, Symbol, OrderDepth
 
 
-SUPPRESS_PRINTS: bool = True
+SUPPRESS_PRINTS: bool = False
 ROUND = 4
 
 
@@ -49,9 +49,9 @@ def run_pnl_estimation(
     all_profits: list[dict[str, float]] = []
     day: str
     for day in [
-        "1",
+        # "1",
         "2",
-        "3",
+        # "3",
     ]:
         print("=====================================")
         print(f"RUNNING DAY {day}")

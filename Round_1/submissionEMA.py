@@ -32,10 +32,6 @@ SPREAD_TO_MM: dict[Symbol, int] = {
     "BANANAS": 4,
     "PEARLS": 4,
     "BERRIES": 5,
-    "BAGUETTE": 5,
-    "DIP": 5,
-    "UKULELE": 5,
-    "PICNIC_BASKET": 5,
 }
 EMA_SHORT_PERIOD: dict[Symbol, int] = {
     "BANANAS": 10,
@@ -172,6 +168,9 @@ class Trader:
         self.fair_value: dict[Symbol, float] = {product: 0 for product in self.products}
         self.historical_prices = {product: [] for product in self.products}
 
+        self.lowest_point_berries_attained = False  # lowest point hasn't been reached yet
+        self.waiting_for_olivia = True
+
         self.need_to_buy_back = False  # for diving gear
         self.last_price_sold = 0  # for diving gear
         self.need_to_sell_back = False  # for diving gear
@@ -210,6 +209,9 @@ class Trader:
                         # if Olivia buys, then it's the lowest price of all day, so we increase the fair_value to make
                         # sure we buy a good amount
                         self.fair_value[product] += OLIVIA_INCREASE[product]
+                        self.lowest_point_berries_attained = True
+                        if timestamp > 750_050:
+                            self.waiting_for_olivia = False
                     elif trade.seller == "Olivia":
                         # if Olivia sells, then it's the highest price of all day, so we decrease the fair_value to make
                         # sure we sell a good amount
@@ -384,56 +386,68 @@ class Trader:
                 self.update_fair_value(product, state.timestamp, state.market_trades)
 
             if product in ["PEARLS", "BANANAS", "BERRIES"]:
-                if product == "BERRIES" and 750_000 <= state.timestamp <= 800_000:
-                    # try to get back to a neutral position
-                    if self.pos[product] > 0:
-                        # sell
-                        orders.append(Order(product, best_bids[0][0], -self.pos[product]))
-                    elif self.pos[product] < 0:
-                        # buy
-                        orders.append(Order(product, best_asks[0][0], -self.pos[product]))
-                elif product == "BERRIES" and state.timestamp > 800_000:
-                    pass
+                if product == "BERRIES" and 750_010 <= state.timestamp <= 750_050:
+                    # try to get back to a neutral position or to -250 if lowest_point_berries_attained is False.
+                    if self.lowest_point_berries_attained:
+                        # then we try to get to neutral
+                        orders.append(
+                            Order(product, best_asks[0][0], -self.pos[product])
+                        )
+                    else:
+                        # then we try to get to -250 because lowest point (at which we will buy back everything)
+                        # has not been attained yet
+                        orders.append(
+                            Order(product, best_asks[0][0], -self.pos[product] + self.pos_limit[product][0])
+                        )
+                        self.waiting_for_olivia = True  # we are now not trading, we just wait for Olivia to buy back
+                        # as a signal that the lowest point has been attained
                 else:
                     # We are going to iterate through the sorted lists of best asks and best bids and place orders
                     # accordingly, stopping when the price is no longer favorable.
 
-                    # buy everything below fair value
-                    ask: int
-                    vol: int
-                    for ask, vol in best_asks:  # vol is < 0
-                        if ask < self.fair_value[product] - MIN_PROFIT[product]:
-                            # then buy it, if we can
-                            buy_volume = min(
-                                -vol, self.pos_limit[product][1] - self.pos[product]
-                            )
-                            if buy_volume > 0:
-                                self.pos[product] += buy_volume
-                                print(f"{product}: Buying at ${ask} x {buy_volume}")
-                                orders.append(Order(product, ask, buy_volume))
-                                if buy_volume == -vol:
-                                    cleared_best_ask = True
+                    if product == "BERRIES" and state.timestamp > 750_050 and self.waiting_for_olivia:
+                        pass  # we just chilling, we'll buy when lowest_point_berries_attained is True
+                    else:
+                        # buy everything below fair value
+                        ask: int
+                        vol: int
+                        for ask, vol in best_asks:  # vol is < 0
+                            if ask < self.fair_value[product] - MIN_PROFIT[product]:
+                                # then buy it, if we can
+                                buy_volume = min(
+                                    -vol, self.pos_limit[product][1] - self.pos[product]
+                                )
+                                if buy_volume > 0:
+                                    self.pos[product] += buy_volume
+                                    print(f"{product}: Buying at ${ask} x {buy_volume}")
+                                    orders.append(Order(product, ask, buy_volume))
+                                    if buy_volume == -vol:
+                                        cleared_best_ask = True
 
-                    # sell everything above fair value
-                    bid: int
-                    vol: int
-                    for bid, vol in best_bids:  # vol is > 0
-                        if bid > self.fair_value[product] + MIN_PROFIT[product]:
-                            # then sell it if we can
-                            sellable_volume = max(
-                                -vol, self.pos_limit[product][0] - self.pos[product]
-                            )
-                            if sellable_volume < 0:
-                                self.pos[product] += sellable_volume
-                                print(f"{product}: Selling at ${bid} x {sellable_volume}")
-                                orders.append(Order(product, bid, sellable_volume))
-                                if sellable_volume == -vol:
-                                    cleared_best_bid = True
+                        # sell everything above fair value
+                        bid: int
+                        vol: int
+                        for bid, vol in best_bids:  # vol is > 0
+                            if bid > self.fair_value[product] + MIN_PROFIT[product]:
+                                # then sell it if we can
+                                sellable_volume = max(
+                                    -vol, self.pos_limit[product][0] - self.pos[product]
+                                )
+                                if sellable_volume < 0:
+                                    self.pos[product] += sellable_volume
+                                    print(f"{product}: Selling at ${bid} x {sellable_volume}")
+                                    orders.append(Order(product, bid, sellable_volume))
+                                    if sellable_volume == -vol:
+                                        cleared_best_bid = True
 
-                    if spread > SPREAD_TO_MM[product]:
-                        # We have a spread, so we need to adjust the fair value by MarketMaking that spread
-                        mm = self.market_make(best_bids, best_asks, product, cleared_best_ask, cleared_best_bid)
-                        orders.extend(mm)
+                        if spread > SPREAD_TO_MM[product]:
+                            # We have a spread, so we need to adjust the fair value by MarketMaking that spread
+                            mm = self.market_make(best_bids, best_asks, product, cleared_best_ask, cleared_best_bid)
+                            orders.extend(mm)
+
+                        if state.timestamp > 750_050 and product == "BERRIES" and not self.waiting_for_olivia:
+                            self.waiting_for_olivia = True  # we are no longer wanting to trade berries
+                            # so we wait for a signal that will never come
 
                 # Add all the above orders to the result dict
                 result[product] = orders
@@ -460,67 +474,79 @@ class Trader:
                 if len(self.historical_prices["DOLPHINS"]) > 5:
                     mean_last_5 = sum(self.historical_prices["DOLPHINS"][-6:-1]) / 5
                     if dolphin_price > mean_last_5 + 5:
-                        # Buy as much diving gear as possible
-                        orders.append(Order(
-                            "DIVING_GEAR",
-                            best_asks[0][0],
-                            self.pos_limit["DIVING_GEAR"][1]-self.pos["DIVING_GEAR"])
-                        )
-                        print(
-                            f"DIVING_GEAR: "
-                            f"Buying at ${best_asks[0][0]}"
-                            f" x "
-                            f"{self.pos_limit['DIVING_GEAR'][1]-self.pos['DIVING_GEAR']}"
-                        )
+                        already_bought = 0
+                        for k in range(len(best_asks)):
+                            # Buy as much diving gear as possible
+                            orders.append(Order(
+                                "DIVING_GEAR",
+                                best_asks[k][0],
+                                self.pos_limit["DIVING_GEAR"][1]-self.pos["DIVING_GEAR"]-already_bought)
+                            )
+                            already_bought -= best_asks[k][1]
+                            print(
+                                f"DIVING_GEAR: "
+                                f"Buying at ${best_asks[k][0]}"
+                                f" x "
+                                f"{self.pos_limit['DIVING_GEAR'][1]-self.pos['DIVING_GEAR']}"
+                            )
                         self.need_to_sell_back = True
                         self.last_price_bought = best_asks[0][0]
                     elif dolphin_price < mean_last_5 - 5:
-                        # Sell as much diving gear as possible
-                        orders.append(Order(
-                            "DIVING_GEAR",
-                            best_bids[0][0],
-                            self.pos_limit["DIVING_GEAR"][0]-self.pos["DIVING_GEAR"])
-                        )
-                        print(
-                            f"DIVING_GEAR: "
-                            f"Selling at ${best_bids[0][0]}"
-                            f" x "
-                            f"{self.pos_limit['DIVING_GEAR'][0]-self.pos['DIVING_GEAR']}"
-                        )
+                        already_sold = 0
+                        for k in range(len(best_bids)):
+                            # Sell as much diving gear as possible
+                            orders.append(Order(
+                                "DIVING_GEAR",
+                                best_bids[k][0],
+                                self.pos_limit["DIVING_GEAR"][0]-self.pos["DIVING_GEAR"]+already_sold)
+                            )
+                            already_sold += best_bids[k][1]
+                            print(
+                                f"DIVING_GEAR: "
+                                f"Selling at ${best_bids[k][0]}"
+                                f" x "
+                                f"{self.pos_limit['DIVING_GEAR'][0]-self.pos['DIVING_GEAR']}"
+                            )
                         self.need_to_buy_back = True
                         self.last_price_sold = best_bids[0][0]
 
                     if self.need_to_sell_back:
-                        if best_bids[0][0] > self.last_price_bought + 200:
-                            # new price which we sell the stuff is higher than the price we bought it for
-                            orders.append(Order(
-                                "DIVING_GEAR",
-                                best_bids[0][0],
-                                self.pos_limit["DIVING_GEAR"][0]-self.pos["DIVING_GEAR"])
-                            )
-                            print(
-                                f"DIVING_GEAR: "
-                                f"Selling at ${best_bids[0][0]}"
-                                f" x "
-                                f"{self.pos_limit['DIVING_GEAR'][0]-self.pos['DIVING_GEAR']}"
-                            )
-                            self.need_to_sell_back = False
+                        already_sold = 0
+                        for k in range(len(best_bids)):
+                            if best_bids[k][0] > self.last_price_bought + 300:
+                                # new price which we sell the stuff is higher than the price we bought it for
+                                orders.append(Order(
+                                    "DIVING_GEAR",
+                                    best_bids[k][0],
+                                    self.pos_limit["DIVING_GEAR"][0]-self.pos["DIVING_GEAR"]+already_sold)
+                                )
+                                already_sold += best_bids[k][1]
+                                print(
+                                    f"DIVING_GEAR: "
+                                    f"Selling at ${best_bids[k][0]}"
+                                    f" x "
+                                    f"{self.pos_limit['DIVING_GEAR'][0]-self.pos['DIVING_GEAR']}"
+                                )
+                                self.need_to_sell_back = False
 
                     if self.need_to_buy_back:
-                        if best_asks[0][0] < self.last_price_sold - 200:
-                            # new price which we buy the stuff is lower than the price we sold it for
-                            orders.append(Order(
-                                "DIVING_GEAR",
-                                best_asks[0][0],
-                                self.pos_limit["DIVING_GEAR"][1]-self.pos["DIVING_GEAR"])
-                            )
-                            print(
-                                f"DIVING_GEAR: "
-                                f"Buying at ${best_asks[0][0]}"
-                                f" x "
-                                f"{self.pos_limit['DIVING_GEAR'][1]-self.pos['DIVING_GEAR']}"
-                            )
-                            self.need_to_buy_back = False
+                        already_bought = 0
+                        for k in range(len(best_asks)):
+                            if best_asks[k][0] < self.last_price_sold - 300:
+                                # new price which we buy the stuff is lower than the price we sold it for
+                                orders.append(Order(
+                                    "DIVING_GEAR",
+                                    best_asks[k][0],
+                                    self.pos_limit["DIVING_GEAR"][1]-self.pos["DIVING_GEAR"]-already_bought)
+                                )
+                                already_bought -= best_asks[k][1]
+                                print(
+                                    f"DIVING_GEAR: "
+                                    f"Buying at ${best_asks[k][0]}"
+                                    f" x "
+                                    f"{self.pos_limit['DIVING_GEAR'][1]-self.pos['DIVING_GEAR']}"
+                                )
+                                self.need_to_buy_back = False
 
                     result["DIVING_GEAR"] = orders
 
@@ -536,7 +562,7 @@ class Trader:
 
                 self.etf.append(self.historical_prices["PICNIC_BASKET"][-1] - expected_etf)
 
-                if state.timestamp > 25_000:
+                if state.timestamp > 5_000:
                     mean = sum(self.etf) / len(self.etf)
                     std = (
                                   sum((x - mean) ** 2 for x in self.etf) / len(self.etf)
