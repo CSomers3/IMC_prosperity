@@ -574,7 +574,7 @@ class Trader:
                     for item, weight in weights.items():
                         component_deviation[item] = (
                                 self.historical_prices[item][-1] * weight -
-                                sum(self.historical_prices[item][-10:-1]) * weight/9
+                                sum(self.historical_prices[item][-30:-1]) * weight/29
                         )
                     # Identify the component with the highest absolute contribution
                     max_deviation_component = max(component_deviation, key=lambda x: abs(component_deviation[x]))
