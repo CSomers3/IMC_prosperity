@@ -550,7 +550,6 @@ class Trader:
 
                     result["DIVING_GEAR"] = orders
 
-
             elif product == "PICNIC_BASKET":
                 # Basket = 2*Baguette + 4*Dip + 1*Ukulele
                 weights = {"BAGUETTE": 2, "DIP": 4, "UKULELE": 1}

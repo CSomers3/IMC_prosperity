@@ -13,7 +13,7 @@ from local_playground_suppress_print_context_manager import suppress_output
 from datamodel import Order, TradingState, Symbol, OrderDepth
 
 
-SUPPRESS_PRINTS: bool = False
+SUPPRESS_PRINTS: bool = True
 ROUND = 4
 
 
