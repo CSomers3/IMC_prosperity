@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 import statistics
 
-from datamodel import Order, TradingState, Symbol, OrderDepth
+from datamodel import Order, TradingState, Symbol, OrderDepth, Trade
 
 ### HYPERPARAMETERS
 ###
@@ -18,6 +18,11 @@ FAIR_VALUE_SHIFT_AT_CROSSOVER: dict[Symbol, int] = {
     "DIP": 0,
     "UKULELE": 0,
     "PICNIC_BASKET": 0,
+}
+OLIVIA_INCREASE: dict[Symbol, int] = {
+    "BERRIES": 10,
+    "BANANAS": 7,
+    "UKULELE": 15,
 }
 FAIR_VALUE_ADJUSTMENT: dict[Symbol, int] = {
     "BERRIES": 3,
@@ -184,7 +189,7 @@ class Trader:
             325.27235,  # day 3
         ]
 
-    def update_fair_value(self, product: str, timestamp: int) -> None:
+    def update_fair_value(self, product: str, timestamp: int, market_trades: dict[Symbol, list[Trade]]) -> None:
         """
         Update the fair value of the given product using EMA.
         """
@@ -197,8 +202,21 @@ class Trader:
 
         self.fair_value[product] = (short_ema + long_ema) / 2
 
+        if product in ["BERRIES", "BANANAS", "UKULELE"]:
+            trade: Trade
+            if product in market_trades:
+                for trade in market_trades[product]:
+                    if trade.buyer == "Olivia":
+                        # if Olivia buys, then it's the lowest price of all day, so we increase the fair_value to make
+                        # sure we buy a good amount
+                        self.fair_value[product] += OLIVIA_INCREASE[product]
+                    elif trade.seller == "Olivia":
+                        # if Olivia sells, then it's the highest price of all day, so we decrease the fair_value to make
+                        # sure we sell a good amount
+                        self.fair_value[product] -= OLIVIA_INCREASE[product]
+
         if product == "BERRIES":
-            if 400_000 <= timestamp <= 558150:
+            if 400_000 <= timestamp <= 557380:
                 self.fair_value[product] += FAIR_VALUE_ADJUSTMENT[product]  # fair_value is too low, we know that
                 # the price will go up, so we increase the fair_value to make sure we buy
             if timestamp >= 600_000:
@@ -363,48 +381,59 @@ class Trader:
                 "COCONUTS", "PINA_COLADAS",
                 "DIP", "BAGUETTE", "UKULELE", "PICNIC_BASKET"
             ]:
-                self.update_fair_value(product, state.timestamp)
+                self.update_fair_value(product, state.timestamp, state.market_trades)
 
             if product in ["PEARLS", "BANANAS", "BERRIES"]:
-                # We are going to iterate through the sorted lists of best asks and best bids and place orders
-                # accordingly, stopping when the price is no longer favorable.
+                if product == "BERRIES" and 750_000 <= state.timestamp <= 800_000:
+                    # try to get back to a neutral position
+                    if self.pos[product] > 0:
+                        # sell
+                        orders.append(Order(product, best_bids[0][0], -self.pos[product]))
+                    elif self.pos[product] < 0:
+                        # buy
+                        orders.append(Order(product, best_asks[0][0], -self.pos[product]))
+                elif product == "BERRIES" and state.timestamp > 800_000:
+                    pass
+                else:
+                    # We are going to iterate through the sorted lists of best asks and best bids and place orders
+                    # accordingly, stopping when the price is no longer favorable.
 
-                # buy everything below fair value
-                ask: int
-                vol: int
-                for ask, vol in best_asks:  # vol is < 0
-                    if ask < self.fair_value[product] - MIN_PROFIT[product]:
-                        # then buy it, if we can
-                        buy_volume = min(
-                            -vol, self.pos_limit[product][1] - self.pos[product]
-                        )
-                        if buy_volume > 0:
-                            self.pos[product] += buy_volume
-                            print(f"{product}: Buying at ${ask} x {buy_volume}")
-                            orders.append(Order(product, ask, buy_volume))
-                            if buy_volume == -vol:
-                                cleared_best_ask = True
+                    # buy everything below fair value
+                    ask: int
+                    vol: int
+                    for ask, vol in best_asks:  # vol is < 0
+                        if ask < self.fair_value[product] - MIN_PROFIT[product]:
+                            # then buy it, if we can
+                            buy_volume = min(
+                                -vol, self.pos_limit[product][1] - self.pos[product]
+                            )
+                            if buy_volume > 0:
+                                self.pos[product] += buy_volume
+                                print(f"{product}: Buying at ${ask} x {buy_volume}")
+                                orders.append(Order(product, ask, buy_volume))
+                                if buy_volume == -vol:
+                                    cleared_best_ask = True
 
-                # sell everything above fair value
-                bid: int
-                vol: int
-                for bid, vol in best_bids:  # vol is > 0
-                    if bid > self.fair_value[product] + MIN_PROFIT[product]:
-                        # then sell it if we can
-                        sellable_volume = max(
-                            -vol, self.pos_limit[product][0] - self.pos[product]
-                        )
-                        if sellable_volume < 0:
-                            self.pos[product] += sellable_volume
-                            print(f"{product}: Selling at ${bid} x {sellable_volume}")
-                            orders.append(Order(product, bid, sellable_volume))
-                            if sellable_volume == -vol:
-                                cleared_best_bid = True
+                    # sell everything above fair value
+                    bid: int
+                    vol: int
+                    for bid, vol in best_bids:  # vol is > 0
+                        if bid > self.fair_value[product] + MIN_PROFIT[product]:
+                            # then sell it if we can
+                            sellable_volume = max(
+                                -vol, self.pos_limit[product][0] - self.pos[product]
+                            )
+                            if sellable_volume < 0:
+                                self.pos[product] += sellable_volume
+                                print(f"{product}: Selling at ${bid} x {sellable_volume}")
+                                orders.append(Order(product, bid, sellable_volume))
+                                if sellable_volume == -vol:
+                                    cleared_best_bid = True
 
-                if spread > SPREAD_TO_MM[product]:
-                    # We have a spread, so we need to adjust the fair value by MarketMaking that spread
-                    mm = self.market_make(best_bids, best_asks, product, cleared_best_ask, cleared_best_bid)
-                    orders.extend(mm)
+                    if spread > SPREAD_TO_MM[product]:
+                        # We have a spread, so we need to adjust the fair value by MarketMaking that spread
+                        mm = self.market_make(best_bids, best_asks, product, cleared_best_ask, cleared_best_bid)
+                        orders.extend(mm)
 
                 # Add all the above orders to the result dict
                 result[product] = orders
@@ -515,6 +544,16 @@ class Trader:
 
                     threshold = std * 1.5
 
+                    # Calculate component contributions to deviation
+                    component_deviation = {}
+                    for item, weight in weights.items():
+                        component_deviation[item] = (
+                                self.historical_prices[item][-1] * weight -
+                                sum(self.historical_prices[item][-10:-1]) * weight/9
+                        )
+                    # Identify the component with the highest absolute contribution
+                    max_deviation_component = max(component_deviation, key=lambda x: abs(component_deviation[x]))
+
                     if self.etf[-1] > mean + threshold:
                         # PICNIC_BASKET is overvalued, sell it
                         quantity = max(
@@ -533,20 +572,22 @@ class Trader:
                             f"{quantity}"
                         )
 
-                        # Hedge with BAGUETTE, DIP, and UKULELE by buying them
+                        # Hedge with BAGUETTE, DIP, or UKULELE by buying them
                         for item, weight in weights.items():
-                            buying_quantity: int = min(-weight * quantity, self.pos_limit[item][1] - self.pos[item])
-                            result[item].append(Order(
-                                item,
-                                self.current_asks[item][0][0],
-                                buying_quantity
-                            ))
-                            print(
-                                f"{item}: "
-                                f"Buying at ${self.current_asks[item][0][0]}"
-                                f" x "
-                                f"{buying_quantity}"
-                            )
+                            if item == max_deviation_component:
+                                buying_quantity: int = min(-weight * quantity, self.pos_limit[item][1] - self.pos[item])
+                                result[item].append(Order(
+                                    item,
+                                    self.current_asks[item][0][0],
+                                    buying_quantity
+                                ))
+                                print(
+                                    f"{item}: "
+                                    f"Buying at ${self.current_asks[item][0][0]}"
+                                    f" x "
+                                    f"{buying_quantity}"
+                                )
+                                break
 
 
                     elif self.etf[-1] < mean - threshold:
@@ -567,20 +608,22 @@ class Trader:
                             f"{quantity}"
                         )
 
-                        # Hedge with BAGUETTE, DIP, and UKULELE by selling them
+                        # Hedge with BAGUETTE, DIP, or UKULELE by selling them
                         for item, weight in weights.items():
-                            selling_quantity = max(-weight * quantity, self.pos_limit[item][0] - self.pos[item])
-                            result[item].append(Order(
-                                item,
-                                self.current_bids[item][0][0],
-                                selling_quantity
-                            ))
-                            print(
-                                f"{item}: "
-                                f"Selling at ${self.current_bids[item][0][0]}"
-                                f" x "
-                                f"{selling_quantity}"
-                            )
+                            if item == max_deviation_component:
+                                selling_quantity = max(-weight * quantity, self.pos_limit[item][0] - self.pos[item])
+                                result[item].append(Order(
+                                    item,
+                                    self.current_bids[item][0][0],
+                                    selling_quantity
+                                ))
+                                print(
+                                    f"{item}: "
+                                    f"Selling at ${self.current_bids[item][0][0]}"
+                                    f" x "
+                                    f"{selling_quantity}"
+                                )
+                                break
 
                     result["PICNIC_BASKET"] = orders
 

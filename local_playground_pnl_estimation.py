@@ -129,7 +129,10 @@ def run_pnl_estimation(
                 listings={},  # is not used anyway
                 order_depths=order_depths,
                 own_trades={},  # is not used anyway
-                market_trades={},  # is not used anyway
+                market_trades={
+                    product: []
+                    for product in products
+                },
                 position=old_trading_state.position,
                 observations={
                     'DOLPHIN_SIGHTINGS':
@@ -329,7 +332,7 @@ def run_pnl_estimation(
                     )
                     with suppress_output(SUPPRESS_PRINTS):
                         print(
-                            f"SEASHELLS AFTER LIQUIDATION PRODUCT "
+                            f"{timestamp}: SEASHELLS AFTER LIQUIDATION PRODUCT "
                             f"{product} {all_profits_and_losses[product]}"
                         )
 
