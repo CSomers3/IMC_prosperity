@@ -49,9 +49,9 @@ def run_pnl_estimation(
     all_profits: list[dict[str, float]] = []
     day: str
     for day in [
-        # "1",
+        "1",
         "2",
-        # "3",
+        "3",
     ]:
         print("=====================================")
         print(f"RUNNING DAY {day}")
