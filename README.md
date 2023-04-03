@@ -1,6 +1,6 @@
 # IMC_prosperity - Team Achill Island
 Private Github for the IMC Prosperity Challenge
-
+Final Result - 03/03/23 - 29th out of 8000+ teams
 
 # Prosperity Outline
 ## allowed python imports:
